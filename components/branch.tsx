@@ -168,7 +168,7 @@ export function BenchmarkFunnel({
       title="Conversion funnel"
       subtitle={`Solid = ${branchName.replace(' Toyota', '')} · pale = the same ${formatNumber(comparison.leads)} leads at peer rates`}
       className="c7"
-      aside={<span className="chip num">n = {comparison.leads}</span>}
+      aside={<span className="chip"><span className="num">{comparison.leads}</span> leads</span>}
       footer={
         comparison.breakStep ? (
           <p className="t-micro">
@@ -225,9 +225,9 @@ export function BenchmarkFunnel({
                     ) : (
                       <>
                         <span className="fnl-pct">{formatPercentValue(step.branchRate, 0)}</span>
-                        <span className="fnl-bench">peers {formatPercentValue(step.peerRate, 0)}</span>
+                        <span className="fnl-bench">other branches {formatPercentValue(step.peerRate, 0)}</span>
                         <span className="fnl-delta">
-                          <DeltaPoints points={step.deltaPoints} /> pts
+                          <DeltaPoints points={step.deltaPoints} /> points
                         </span>
                         <span className="fnl-lost">
                           {isBreak
@@ -284,6 +284,7 @@ export function CycleTimePanel({
         </p>
       }
     >
+      <div className="scrollx">
       <table className="tbl">
         <thead>
           <tr>
@@ -291,7 +292,7 @@ export function CycleTimePanel({
             <th className="r">Branch</th>
             <th className="r">Group</th>
             <th className="r" style={{ paddingRight: 16 }}>
-              Δ
+              Difference
             </th>
           </tr>
         </thead>
@@ -317,6 +318,7 @@ export function CycleTimePanel({
           })}
         </tbody>
       </table>
+      </div>
     </Panel>
   );
 }
@@ -479,15 +481,20 @@ export function DistributionStrip({
 
 type SortKey = 'name' | 'leads' | 'contacted' | 'win' | 'revenue' | 'firstContact' | 'open' | 'stalled';
 
-const SORT_COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
+/**
+ * `foldsAway` columns drop out below 960px. What stays is the branch
+ * diagnosis itself — leads in, whether they were called, whether they closed,
+ * and how long the first call took.
+ */
+const SORT_COLUMNS: { key: SortKey; label: string; numeric: boolean; foldsAway?: boolean }[] = [
   { key: 'name', label: 'Rep', numeric: false },
   { key: 'leads', label: 'Leads', numeric: true },
   { key: 'contacted', label: 'Contacted', numeric: true },
   { key: 'win', label: 'Win rate', numeric: true },
-  { key: 'revenue', label: 'Revenue', numeric: true },
+  { key: 'revenue', label: 'Revenue', numeric: true, foldsAway: true },
   { key: 'firstContact', label: 'Median 1st contact', numeric: true },
-  { key: 'open', label: 'Open', numeric: true },
-  { key: 'stalled', label: 'Stalled', numeric: true },
+  { key: 'open', label: 'Open', numeric: true, foldsAway: true },
+  { key: 'stalled', label: 'Stalled', numeric: true, foldsAway: true },
 ];
 
 function sortValue(rep: RepRollup, key: SortKey): number | string {
@@ -581,7 +588,7 @@ export function RepTable({
         branchName={branchName}
       />
       <div className="scrollx">
-        <table className="tbl tbl-hover" style={{ minWidth: 720 }}>
+        <table className="tbl tbl-hover tbl-fold">
           <thead>
             <tr>
               {SORT_COLUMNS.map((column) => {
@@ -590,7 +597,10 @@ export function RepTable({
                 return (
                   <th
                     key={column.key}
-                    className={column.numeric ? 'r' : undefined}
+                    className={
+                      [column.numeric ? 'r' : '', column.foldsAway ? 'fold' : ''].filter(Boolean).join(' ') ||
+                      undefined
+                    }
                     style={column.key === 'name' ? { paddingLeft: 16 } : undefined}
                     aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                   >
@@ -629,14 +639,14 @@ export function RepTable({
                   <td className="r num">
                     <RateText rate={rep.winRate} />
                   </td>
-                  <td className="r num">{formatCurrency(rep.deliveredRevenue)}</td>
+                  <td className="r num fold">{formatCurrency(rep.deliveredRevenue)}</td>
                   <td className={slow ? 'r num warn' : 'r num'}>
                     {rep.medianHoursToFirstContact === null
                       ? '—'
                       : formatDurationHours(rep.medianHoursToFirstContact)}
                   </td>
-                  <td className="r num">{rep.openCount}</td>
-                  <td className="r num" style={{ paddingRight: 16 }}>
+                  <td className="r num fold">{rep.openCount}</td>
+                  <td className="r num fold" style={{ paddingRight: 16 }}>
                     {rep.stalledCount}
                   </td>
                 </tr>
@@ -734,7 +744,7 @@ export function BranchTargets({
                   aria-hidden="true"
                 />
                 <div
-                  className="t-micro num"
+                  className="t-micro num bar-annot"
                   style={{
                     position: 'absolute',
                     left: pct(leads / row.targetUnits),

@@ -109,7 +109,13 @@ export default async function ActionCenterPage({
 
   return (
     <div className="app">
-      <TopBar reconciledCount={dataset.reconciliation.reconciledCount} subtitle="Action Center" />
+      <TopBar
+        reconciledCount={dataset.reconciliation.reconciledCount}
+        subtitle="Action Center"
+        current="actions"
+        actionCount={actions.stalled.count + actions.cold.count}
+        filters={state}
+      />
       <FilterBar
         state={state}
         branches={dataset.branches}
@@ -336,11 +342,11 @@ export default async function ActionCenterPage({
               </div>
               <div className="panel-bd" style={{ paddingTop: 0 }}>
                 <div className="scrollx">
-                  <table className="tbl tbl-hover" style={{ minWidth: 640 }}>
+                  <table className="tbl tbl-hover tbl-fold-sm">
                     <thead>
                       <tr>
                         <th style={{ paddingLeft: 0 }}>Customer</th>
-                        <th>Branch</th>
+                        <th className="fold">Branch</th>
                         <th>Cause</th>
                         <th className="r">Value</th>
                         <th className="r">Days</th>
@@ -358,7 +364,7 @@ export default async function ActionCenterPage({
                               {item.customerName}
                             </Link>
                           </td>
-                          <td className="muted">{item.branchName.replace(' Toyota', '')}</td>
+                          <td className="muted fold">{item.branchName.replace(' Toyota', '')}</td>
                           <td className="muted">{item.delayReason ?? 'Not recorded'}</td>
                           <td className="r num">{formatCurrency(item.dealValue)}</td>
                           <td className="r num warn">{item.daysToDeliver}</td>

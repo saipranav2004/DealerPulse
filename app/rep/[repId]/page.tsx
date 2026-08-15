@@ -97,7 +97,7 @@ export default async function RepPage({
 
   return (
     <div className="app">
-      <TopBar reconciledCount={dataset.reconciliation.reconciledCount} />
+      <TopBar reconciledCount={dataset.reconciliation.reconciledCount} filters={state} />
       <FilterBar
         state={state}
         branches={dataset.branches}

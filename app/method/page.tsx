@@ -38,6 +38,7 @@ export default function MethodPage() {
                   <em>relative to what its peers would have converted</em>. Steps are ranked by leads lost,
                   not by percentage-point gap.
                 </p>
+                <div className="scrollx">
                 <table className="tbl">
                   <thead>
                     <tr>
@@ -69,6 +70,7 @@ export default function MethodPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
                 <p className="t-small" style={{ marginTop: 'var(--s4)' }}>
                   The largest <strong>Extra</strong> is the break step. Note that{' '}
                   <code>test_drive → negotiation</code> has the widest percentage-point gap, but it operates
@@ -144,6 +146,7 @@ export default function MethodPage() {
               <p className="t-small" style={{ marginBottom: 'var(--s3)' }}>
                 Derived from this dataset&rsquo;s dwell medians, not round numbers.
               </p>
+              <div className="scrollx">
               <table className="tbl">
                 <tbody>
                   {actions.coldThresholds.map((threshold) => (
@@ -155,6 +158,7 @@ export default function MethodPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
               <p className="t-small" style={{ marginTop: 'var(--s3)' }}>
                 A flat seven-day rule would flag{' '}
                 <span className="num">

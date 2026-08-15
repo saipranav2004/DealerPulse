@@ -110,7 +110,7 @@ export default async function BranchPage({
 
   return (
     <div className="app">
-      <TopBar reconciledCount={dataset.reconciliation.reconciledCount} />
+      <TopBar reconciledCount={dataset.reconciliation.reconciledCount} filters={state} />
       <FilterBar
         state={state}
         branches={dataset.branches}

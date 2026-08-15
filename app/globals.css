@@ -267,6 +267,29 @@ body {
 .topbar .org { font-size: 12px; color: var(--ink-2); }
 .sp { flex: 1; }
 
+/* Primary navigation. Every screen is one click from every other screen. */
+.nav { display: flex; align-items: center; gap: 2px; }
+.nav-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px; border-radius: var(--r-sm);
+  font-size: 12.5px; color: var(--ink-2); text-decoration: none; white-space: nowrap;
+}
+.nav-link:hover { background: var(--surface-3); color: var(--ink); }
+.nav-link.on { background: var(--accent-wash); color: var(--accent); font-weight: 600; }
+.nav-badge {
+  display: inline-grid; place-items: center; min-width: 18px; height: 16px; padding: 0 5px;
+  border-radius: 8px; background: var(--critical); color: #fff;
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+}
+.nav-link.on .nav-badge { background: var(--critical); }
+
+.theme-btn {
+  display: inline-grid; place-items: center; width: 26px; height: 26px;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  background: none; color: var(--ink-3); cursor: pointer; padding: 0;
+}
+.theme-btn:hover { border-color: var(--rule); background: var(--surface-2); color: var(--ink); }
+
 .marker { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3); white-space: nowrap; }
 .marker-date-sm { display: none; }
 .marker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--positive); flex: none; }
@@ -552,7 +575,56 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 .ba-cell.is-after { background: var(--accent-wash); border-color: var(--accent); }
 .assumption { display: flex; gap: var(--s2); padding: var(--s3); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--r-md); }
 
+/* --- Search + pager ------------------------------------------------------- */
+.search {
+  display: flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 9px; min-width: 300px; flex: 1 1 300px; max-width: 420px;
+  border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: var(--surface);
+}
+.search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.search input {
+  border: 0; outline: 0; background: none; color: var(--ink);
+  font-family: var(--sans); font-size: 12.5px; width: 100%; min-width: 0;
+}
+.search input::placeholder { color: var(--ink-3); }
+
+.seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); overflow: hidden; }
+.seg a {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 10px; height: 28px;
+  font-size: 12px; color: var(--ink-2); text-decoration: none;
+  border-right: 1px solid var(--rule);
+  background: var(--surface); white-space: nowrap;
+}
+.seg a:last-child { border-right: 0; }
+.seg a:hover { background: var(--surface-2); color: var(--ink); }
+.seg a.on { background: var(--accent-wash); color: var(--accent); font-weight: 600; }
+.seg .ct { font-family: var(--mono); font-size: 11px; opacity: .8; }
+
+.pager { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.pager .gap { flex: 1; }
+
+.stat-strip { display: flex; gap: var(--s6); flex-wrap: wrap; align-items: flex-start; }
+.stat-strip > div { min-width: 0; }
+
 .scrollx { overflow-x: auto; }
+.tbl-fold { min-width: 900px; }
+.tbl-fold-sm { min-width: 640px; }
+@media (max-width: 719px) {
+  .tbl-fold-sm { min-width: 0; }
+  .tbl-fold-sm .fold { display: none; }
+}
+/* `.fold` cells drop out below 900px; `.unfold` is their replacement line,
+   stacked under the customer name. Exactly one of the pair is ever visible. */
+.unfold { display: none; }
+/* 959px, not 899: the table needs 900px of *container*, and the page spends
+   ~42px on padding and borders before the panel starts. */
+@media (max-width: 959px) {
+  .tbl-fold { min-width: 0; }
+  .tbl-fold .fold { display: none; }
+  .tbl-fold .unfold { display: block; margin-top: 2px; }
+  .tbl-fold .pin { position: static; box-shadow: none; }
+}
 .pin { position: sticky; left: 0; background: var(--surface); z-index: 1; box-shadow: 1px 0 0 var(--rule); }
 .tbl-hover tbody tr:hover .pin { background: var(--surface-2); }
 .row-focus .pin { background: var(--accent-wash); }
@@ -595,15 +667,20 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
     grid-template-columns: 26px 22px minmax(0,1fr) auto;
     row-gap: 6px;
   }
+  /* Explicit spans, never `-1`: with no explicit row template, `-1` resolves
+     back to line 1 and the cell silently collapses. */
   .q-sev   { grid-column: 1; grid-row: 1 / span 3; height: 100%; min-height: 30px; }
   .q-row > .chk { grid-column: 2; grid-row: 1; }
   .q-what  { grid-column: 3; grid-row: 1; }
   .q-money { grid-column: 4; grid-row: 1; white-space: nowrap; align-self: start; }
-  .q-owner { grid-column: 3 / -1; grid-row: 2; display: block; }
-  .q-age   { grid-column: 3 / -1; grid-row: 2; text-align: left; justify-self: end; }
-  .q-act   { grid-column: 3 / -1; grid-row: 3; justify-content: flex-start; }
-  /* Age sits inline beside the owner rather than on its own line. */
-  .q-age br { display: none; }
+  .q-owner { grid-column: 3; grid-row: 2; display: block; }
+  .q-age   { grid-column: 3; grid-row: 3; text-align: left; justify-self: start; }
+  /* The next step sits beside the detail rather than under it: a stacked
+     button pushed every row past a screen-third and cost three visible rows. */
+  .q-act   { grid-column: 4; grid-row: 2 / span 2; justify-content: flex-end; align-items: start; }
+  /* Owner, branch and age each collapse to one line. */
+  .q-owner br, .q-age br { display: none; }
+  .q-owner .t-micro::before { content: '·'; margin: 0 5px; }
   .q-age .t-micro { margin-left: 6px; }
   .dp { grid-template-columns: 100px 1fr 1fr; }
   .dp-delta { display: none; }
@@ -612,6 +689,50 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
   .marker-hide-sm { display: none; }
   .marker-date-sm { display: inline; }
   .queue-branches { text-align: left !important; }
+}
+
+/* Phone. Not a designed breakpoint — the brief is desktop-first — but the page
+   must not scroll sideways, because a horizontally scrolling dashboard reads
+   as broken. Everything that was a single non-wrapping row wraps here. */
+@media (max-width: 767px) {
+  .topbar {
+    height: auto; min-height: 38px; flex-wrap: wrap;
+    padding: 6px var(--s4); gap: var(--s2); row-gap: 4px;
+  }
+  /* The nav takes the whole second line so no tap target is squeezed. */
+  .nav { order: 3; width: 100%; gap: 4px; }
+  .nav-link { height: 32px; flex: 1; justify-content: center; padding: 0 6px; }
+  .topbar .sp { display: none; }
+  .marker { margin-left: auto; }
+  .filterbar, .subset-bar { flex-wrap: wrap; height: auto; padding-top: var(--s2); padding-bottom: var(--s2); }
+  /* An absolutely positioned popover still counts toward page width. */
+  .menu-pop { max-width: calc(100vw - var(--s7)); min-width: 0 !important; }
+  .verdict-in, .grid { gap: var(--s4); }
+  .vitals { grid-template-columns: 1fr; }
+  .vital:nth-child(n) { border-right: 0; }
+  .q-row { grid-template-columns: 26px 22px minmax(0,1fr); }
+  .q-money { grid-column: 3; grid-row: 2; text-align: left; }
+  .q-owner { grid-row: 3; }
+  .q-age   { grid-row: 4; }
+  .q-act   { grid-column: 3; grid-row: 5; justify-content: flex-start; }
+  .seg { flex-wrap: wrap; }
+  .tabs { overflow-x: auto; }
+  /* Before/after stacks; the arrow between them has nowhere to point sideways. */
+  .ba { grid-template-columns: minmax(0,1fr); }
+  .ba > :nth-child(2) { display: none; }
+  .ba-cell { min-width: 0; }
+  /* Long explanatory counts wrap rather than widening the bar. */
+  .subset-bar, .subset-bar * { white-space: normal; overflow-wrap: anywhere; }
+  /* The floating tick label on the targets bar cannot stay centred on its mark
+     without running off a 360px screen. The sentence below the bar states the
+     same figure, so the label goes rather than the meaning. */
+  .bar-annot { display: none; }
+  /* Where a table still has to scroll inside its panel, the scrollbar is made
+     permanently visible — an invisible scroll region is a hidden column. */
+  .scrollx { scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; }
+  .scrollx::-webkit-scrollbar { height: 6px; }
+  .scrollx::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 3px; }
+  .panel-hd { flex-wrap: wrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {

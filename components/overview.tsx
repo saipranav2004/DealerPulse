@@ -13,6 +13,8 @@ import type { LossAnalysisResult } from '@/lib/analytics/lossAnalysis';
 import type { SourcesResult } from '@/lib/analytics/sources';
 import type { TargetsResult } from '@/lib/analytics/targets';
 import type { Verdict } from '@/lib/analytics/verdict';
+import type { ForecastResult } from '@/lib/analytics/forecast';
+import { TrendChart, type TrendPoint } from '@/components/charts';
 import {
   formatCompactNumber,
   formatCurrency,
@@ -427,6 +429,7 @@ export function MoneyAtRisk({ stalled, filters }: { stalled: QueueSummary; filte
           </div>
         </div>
       ) : (
+        <div className="scrollx">
         <table className="tbl tbl-hover">
           <thead>
             <tr>
@@ -455,6 +458,7 @@ export function MoneyAtRisk({ stalled, filters }: { stalled: QueueSummary; filte
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </Panel>
   );
@@ -518,6 +522,150 @@ export function WhereDealsDie({ loss }: { loss: LossAnalysisResult }) {
 
 /* -------------------------------------------------------------------------- */
 
+const STAGE_LABEL: Record<string, string> = {
+  new: 'New',
+  contacted: 'Contacted',
+  test_drive: 'Test drive',
+  negotiation: 'Negotiation',
+  order_placed: 'Order placed',
+};
+
+/**
+ * What the open pipeline is worth, weighted by how leads at each stage have
+ * actually converted. The panel leads with a range rather than a single number
+ * because most of the value sits in orders that have already failed to deliver.
+ */
+export function ForecastPanel({ forecast, filters }: { forecast: ForecastResult; filters: FilterState }) {
+  if (forecast.openCount === 0) {
+    return (
+      <Panel title="What is still coming" className="c6">
+        <p className="t-small">No open leads on this selection, so there is nothing left to forecast.</p>
+      </Panel>
+    );
+  }
+
+  const low = forecast.expectedRevenueExcludingStalled;
+  const high = forecast.expectedRevenue;
+
+  return (
+    <Panel
+      title="What is still coming"
+      subtitle="Open pipeline weighted by how each stage has actually converted"
+      className="c6"
+      footer={
+        <p className="t-micro">
+          Weighted from this period&rsquo;s own conversion rates. A lead sitting at{' '}
+          <em>order placed</em> historically delivers{' '}
+          {formatPercentValue(forecast.stages[forecast.stages.length - 1]?.probability ?? 0, 0)} of the time.
+        </p>
+      }
+    >
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+        <span className="t-metric">{formatCurrency(low)}</span>
+        <span className="t-small muted">to</span>
+        <span className="t-metric">{formatCurrency(high)}</span>
+      </div>
+      <p className="t-small" style={{ marginBottom: 'var(--s4)' }}>
+        from <span className="num">{formatNumber(forecast.openCount)}</span> open leads worth{' '}
+        <span className="num">{formatCurrency(forecast.openValue)}</span>
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 'var(--s4)' }}>
+        {forecast.stages.map((stage) => (
+          <div key={stage.stage} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
+            <span className="t-small" style={{ width: 96, flex: 'none' }}>
+              {STAGE_LABEL[stage.stage] ?? stage.stage}
+            </span>
+            <span className="num t-micro" style={{ width: 54, flex: 'none', textAlign: 'right' }}>
+              {stage.openCount} open
+            </span>
+            <div className="bar-track" style={{ height: 8, flex: 1 }}>
+              <div
+                className="bar-fill"
+                style={{ width: pct(stage.probability), background: 'var(--c-seq-3)' }}
+              />
+            </div>
+            <span className="num t-micro" style={{ width: 78, flex: 'none', textAlign: 'right' }}>
+              {formatPercentValue(stage.probability, 0)} likely
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {forecast.stalledDominates ? (
+        <div className="assumption">
+          <span className="warn" style={{ marginTop: 3, flex: 'none' }}>
+            <Glyph kind="warning" />
+          </span>
+          <div>
+            <p className="t-label" style={{ marginBottom: 4 }}>
+              Why this is a range, not a number
+            </p>
+            <p className="t-small">
+              <strong style={{ color: 'var(--ink)' }}>
+                {formatNumber(forecast.stalledCount)} of these are orders already paid for and never
+                delivered
+              </strong>
+              , worth {formatCurrency(forecast.stalledValue)}. Treating them as likely to complete gives the
+              upper figure. Excluding them entirely gives the lower one. The truth is in between, and it
+              depends on whether anyone chases them.
+            </p>
+            {forecast.overdueCount > 0 ? (
+              <p className="t-small" style={{ marginTop: 6 }}>
+                <span className="num">{formatNumber(forecast.overdueCount)}</span> open leads are already
+                past the close date their own rep predicted, worth{' '}
+                <span className="num">{formatCurrency(forecast.overdueValue)}</span>.
+              </p>
+            ) : null}
+            <Link
+              href={hrefWithFilters('/actions', filters)}
+              className="btn btn-sm"
+              style={{ marginTop: 8 }}
+            >
+              Chase the {formatNumber(forecast.stalledCount)} stalled orders
+            </Link>
+          </div>
+        </div>
+      ) : null}
+    </Panel>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+
+/** Delivered revenue by month — the plain "are we growing" question. */
+export function RevenueTrend({ points }: { points: TrendPoint[] }) {
+  if (points.length < 2) return null;
+  const first = points[0].value;
+  const last = points[points.length - 1].value;
+  const change = first > 0 ? (last - first) / first : null;
+
+  return (
+    <Panel
+      title="Revenue delivered each month"
+      subtitle="Cars handed over, by the month they were handed over"
+      className="c6"
+      aside={
+        change !== null ? (
+          <span className={change >= 0 ? 'chip chip-pos' : 'chip chip-crit'}>
+            <span className="num">{formatSignedPercent(change)}</span> since {points[0].shortLabel}
+          </span>
+        ) : undefined
+      }
+      footer={
+        <p className="t-micro">
+          December is the largest month on record here. Cars ordered earlier in the year complete in
+          December, so this line leads the cohort view rather than contradicting it.
+        </p>
+      }
+    >
+      <TrendChart points={points} title="Delivered revenue by month" valueLabel="Delivered revenue" />
+    </Panel>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+
 export function SourceTable({ sources }: { sources: SourcesResult }) {
   const worst = sources.sources.reduce<{ id: string; value: number } | null>((low, row) => {
     const value = row.winRate.value;
@@ -545,6 +693,7 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
           <p className="t-small">No leads on this selection.</p>
         </div>
       ) : (
+        <div className="scrollx">
         <table className="tbl tbl-hover">
           <thead>
             <tr>
@@ -576,6 +725,7 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </Panel>
   );
@@ -639,7 +789,7 @@ export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult
                   aria-hidden="true"
                 />
                 <div
-                  className="t-micro num"
+                  className="t-micro num bar-annot"
                   style={{ position: 'absolute', left: pct(totalLeads / targetUnits), top: -22, transform: 'translateX(-50%)', whiteSpace: 'nowrap' }}
                 >
                   {formatNumber(totalLeads)} — every lead that exists

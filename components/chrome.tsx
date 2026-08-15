@@ -8,6 +8,7 @@
  */
 
 import Link from 'next/link';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { formatNumber } from '@/lib/format';
 import {
   ALL_MODELS,
@@ -31,13 +32,35 @@ function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
 }
 
-/** Utility bar: identity, data currency, data quality. */
+export type NavKey = 'overview' | 'actions' | 'leads' | 'models';
+
+const NAV: { key: NavKey; label: string; href: string }[] = [
+  { key: 'overview', label: 'Overview', href: '/' },
+  { key: 'actions', label: 'Act now', href: '/actions' },
+  { key: 'leads', label: 'Leads', href: '/leads' },
+  { key: 'models', label: 'Vehicles', href: '/models' },
+];
+
+/**
+ * Utility bar: identity, primary navigation, data currency, data quality.
+ *
+ * The navigation exists because without it the Action Center — the screen this
+ * product argues is the most valuable — was reachable only by scrolling to the
+ * bottom of the Overview. The badge carries the number of things waiting, so
+ * the reason to click is visible before the click.
+ */
 export function TopBar({
   reconciledCount,
   subtitle,
+  current,
+  actionCount,
+  filters,
 }: {
   reconciledCount: number;
   subtitle?: string;
+  current?: NavKey;
+  actionCount?: number;
+  filters?: FilterState;
 }) {
   return (
     <header className="topbar">
@@ -45,6 +68,25 @@ export function TopBar({
         DealerPulse
       </Link>
       {subtitle ? <span className="org marker-hide-sm">{subtitle}</span> : null}
+
+      <nav className="nav" aria-label="Main">
+        {NAV.map((item) => (
+          <Link
+            key={item.key}
+            href={filters ? hrefWithFilters(item.href, filters) : item.href}
+            className={item.key === current ? 'nav-link on' : 'nav-link'}
+            aria-current={item.key === current ? 'page' : undefined}
+          >
+            {item.label}
+            {item.key === 'actions' && actionCount !== undefined && actionCount > 0 ? (
+              <span className="nav-badge" aria-label={`${actionCount} items need attention`}>
+                {actionCount}
+              </span>
+            ) : null}
+          </Link>
+        ))}
+      </nav>
+
       <span className="sp" />
       <span className="marker">
         <i className="dot" aria-hidden="true" />
@@ -54,6 +96,7 @@ export function TopBar({
         </span>
         <span className="sr-only">Data current as of {DATA_CURRENT_AS_OF}</span>
       </span>
+      <ThemeToggle />
       <details className="menu">
         <summary className="marker-btn" aria-label={`${reconciledCount} records reconciled — data quality`}>
           <u>{reconciledCount} records reconciled</u>

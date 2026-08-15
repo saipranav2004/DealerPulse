@@ -23,13 +23,17 @@ import { FilterBar, SubsetBar, TopBar } from '@/components/chrome';
 import { LeadDrawer } from '@/components/lead-drawer';
 import {
   BranchComparison,
+  ForecastPanel,
   MoneyAtRisk,
+  RevenueTrend,
   SourceTable,
   TargetsContext,
   VerdictBand,
   VitalSigns,
   WhereDealsDie,
 } from '@/components/overview';
+import { computeForecast } from '@/lib/analytics/forecast';
+import { formatMonthKey } from '@/lib/format';
 import { EmptyByFilter } from '@/components/states';
 
 export default async function OverviewPage({
@@ -56,6 +60,13 @@ export default async function OverviewPage({
   const targets = computeTargets(dataset, filters);
   const cohorts = computeCohorts(dataset, filters);
   const activity = computeDeliveryActivity(dataset, filters);
+  const forecast = computeForecast(dataset, filters);
+
+  const trendPoints = activity.map((point) => ({
+    label: formatMonthKey(point.month),
+    shortLabel: formatMonthKey(point.month).split(' ')[0],
+    value: point.revenue,
+  }));
 
   const leadParam = typeof params.lead === 'string' ? params.lead : undefined;
   const timeline = leadParam ? computeLeadTimeline(dataset, leadParam) : null;
@@ -69,6 +80,9 @@ export default async function OverviewPage({
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
         subtitle={`Toyota Group · ${dataset.branches.length} branches`}
+        current="overview"
+        actionCount={actions.stalled.count + actions.cold.count}
+        filters={state}
       />
       <FilterBar state={state} branches={dataset.branches} basePath="/" leadCount={leads.length} />
       <SubsetBar
@@ -106,6 +120,8 @@ export default async function OverviewPage({
                 filters={state}
               />
               <MoneyAtRisk stalled={actions.stalled} filters={state} />
+              <RevenueTrend points={trendPoints} />
+              <ForecastPanel forecast={forecast} filters={state} />
               <WhereDealsDie loss={loss} />
               <SourceTable sources={sources} />
               <TargetsContext targets={targets} totalLeads={leads.length} />

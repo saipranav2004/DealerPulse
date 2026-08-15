@@ -22,15 +22,23 @@ furthest below the group, then finds the funnel step where it loses the most
 leads *relative to what its peers would have converted*. Change the filters and
 the sentence recomputes.
 
-### The five screens
+### The screens
 
 | Screen | Job |
 |---|---|
-| **Overview** | The verdict, five vital signs, and the evidence for the claim |
+| **Overview** | The verdict, five vital signs, the revenue trend, the forecast, and the evidence for the claim |
+| **Act now** (Action Center) | A prioritised work queue. If it is cleared, the business improves |
+| **Leads** | Every one of the 510 rows behind every aggregate — searchable, sortable, exportable |
+| **Vehicles** | Where attention goes versus where the money is |
 | **Branch** | Diagnosis. A funnel drawn twice — actual, and the same leads at peer rates |
 | **Rep** | A scorecard usable in a 1:1 without being a firing document |
 | **Lead** | The full journey, with every gap measured against its median |
-| **Action Center** | A prioritised work queue. If it is cleared, the business improves |
+
+The four screens a CEO uses sit in a persistent top navigation, with a live
+count on **Act now**. Before that existed, the Action Center — the screen this
+product argues is the most valuable — was reachable only by scrolling to the
+bottom of the Overview. That was the single worst usability defect in the build,
+and it was invisible to me until I tried to use the thing rather than look at it.
 
 ## Key product decisions and tradeoffs
 
@@ -67,9 +75,19 @@ yields **+22 and ₹5.5 Cr**. The second needs the whole funnel fixed, not just 
 phone calls, so it sits in the assumption block clearly labelled. A simulator
 that shows its best case first is a sales tool, not an instrument.
 
+**The forecast reports a range, and says why it is a range.** Weighting the 62
+open leads by how each stage has actually converted in this period gives ₹9.88 Cr
+expected. But 38 of those leads are orders already paid for and never delivered,
+worth ₹8.59 Cr — 74% of the total. Treating them as likely to complete produces
+the upper figure; excluding them entirely produces ₹2.94 Cr. Both are shown, with
+the reason stated above the number. A single point estimate here would have been
+a lie dressed as precision. As a coherence check: P(deliver | new) works out to
+0.3137, which is exactly the company's 160/510 win rate.
+
 **Filters live in the URL.** They survive navigation into a drill-down, they are
 shareable as a link, and they let the server compute the page — so the 620 KB
-dataset never reaches the browser. Page JavaScript is **527 B**.
+dataset never reaches the browser. Page JavaScript is **1.15 kB** on the Overview
+and 4.78 kB on the Action Center, the only screen with real client state.
 
 **Server components by default.** Only three client components exist, each for
 behaviour static markup cannot provide: the lead drawer (Escape/backdrop), queue
@@ -116,6 +134,17 @@ average deal value at ₹27.17 L, lowest win rate at 13.9%. Either the leads are
 unqualified or nobody is calling them back — and given the finding above, the
 second is worth checking first.
 
+**The car people ask about is not the car that pays.** Glanza draws 130 leads and
+earns ₹3.97 Cr. Fortuner draws 94 and earns ₹12.61 Cr — 3.2× the revenue on 36
+fewer enquiries. The top three vehicles produce 65% of delivered revenue. This is
+the largest dimension in the dataset that no summary metric touches, which is why
+it got its own screen.
+
+**Rep tenure explains nothing.** I checked whether hire date predicted win rate
+before writing the Lakeside conclusion, because "the branch hired badly" would
+have been a competing explanation. It does not correlate. Reporting a non-finding
+matters here: it is what rules out the alternative story.
+
 **Speed is not Lakeside's problem.** It is 1–2 days slower than the group at
 every stage — never dramatically. That is what licenses the conclusion that the
 problem is *starting*, not *moving*.
@@ -135,25 +164,46 @@ median cycle, a December lead cannot have delivered yet. Cohort series carry an
 1. **Write-back.** The queue's actions are the product's whole point and they
    currently stop at the browser. Assignment, snooze and contact need to reach the
    DMS before this is worth opening twice.
-2. **Forecasting on the open pipeline.** With 62 open leads and known stage
-   conversion, a defensible month-end projection is reachable — and far more
-   useful than the broken target it would replace.
-3. **Rep coaching view.** The rep screen diagnoses. It does not yet say what to do
+2. **Rep coaching view.** The rep screen diagnoses. It does not yet say what to do
    on Monday, which is what a branch manager actually needs from it.
-4. **A real time-range picker.** Presets cover the dataset, but a custom range and
+3. **A real time-range picker.** Presets cover the dataset, but a custom range and
    period-over-period comparison across arbitrary windows is the obvious next step.
-5. **Anomaly detection on intake.** Never-contacted counts rise every month from
+4. **Anomaly detection on intake.** Never-contacted counts rise every month from
    11 in June to 23 in November. Nobody was watching that line; something should
    be.
+5. **Scheduled digests.** The verdict is a sentence. A sentence can be emailed on
+   Monday morning, which is a better delivery mechanism than hoping the CEO opens
+   a tab.
 
 ## Trade-offs I accepted
 
 - **No charting library.** Every visual is hand-built SVG or CSS against the
   design tokens. It cost time but kept the palette, density and dark mode
-  consistent — and kept the bundle at 527 B per page.
+  consistent — and kept the bundle small enough to state in bytes.
 - **The delivery-delays queue is the weakest of the three** and I would cut it
   before shipping. All 47 rows are already-delivered cars, so no row has a live
   next step. It is analysis wearing a queue's clothing. It stays for now because
   the delay causes are genuinely useful to the supply side.
-- **Mobile below 768px is out of scope**, per the brief's desktop-and-tablet
-  requirement. Layouts degrade gracefully but are not designed for it.
+- **Phone is supported, not designed.** The brief is desktop-first with tablet
+  secondary, and that is where the layouts are composed. Below 960px wide tables
+  fold their least load-bearing columns away rather than hiding them behind a
+  horizontal scroll nobody discovers; below 768px the navigation takes its own
+  row and every panel stacks. No screen from 360px up scrolls sideways. But a
+  phone-native information design — one card at a time, thumb-reachable actions —
+  is a different product and is not what this is.
+
+## Verification
+
+Numbers are asserted against a fixed expectations file rather than trusted:
+326 unit tests across 20 files pin every published figure, the low-sample guard,
+the percentile convention, and the whole-day duration rule. A separate end-to-end
+pass renders all seven routes under `next start` and asserts 38 rendered figures
+and states — including the 404s, the empty-by-filter state, and the n=1 case
+where every rate must be withheld. `NOW` is pinned to 2025-12-31T19:10:00Z, so
+nothing in the product depends on when it is run.
+
+One expected value does not reproduce and is documented rather than tuned away:
+the walk-in source's delivered revenue computes to ₹25.00 L where the
+expectations file says ₹24.99 L. Only truncation produces 24.99, and truncation
+breaks three other rows in the same file. The expectations file is internally
+inconsistent on that cell; the code is not adjusted to match it.

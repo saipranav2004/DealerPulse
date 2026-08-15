@@ -278,7 +278,7 @@ export function ActionQueue({
                 {row.lateness !== null ? (
                   <>
                     <br />
-                    <span className="t-micro">{row.lateness.toFixed(1)}× normal</span>
+                    <span className="t-micro">{row.lateness.toFixed(1)}× longer than normal</span>
                   </>
                 ) : null}
               </span>

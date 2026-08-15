@@ -29,7 +29,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${plexSans.variable} ${plexMono.variable}`}>
+    <html lang="en" className={`${plexSans.variable} ${plexMono.variable}`} suppressHydrationWarning>
+      <head>
+        {/*
+          Applies the saved theme before first paint so the page never flashes
+          the wrong one. Runs synchronously and fails silently if storage is
+          blocked, in which case the system preference applies.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var m=localStorage.getItem('dealerpulse.theme');if(m==='light'||m==='dark'){document.documentElement.setAttribute('data-theme',m)}}catch(e){}",
+          }}
+        />
+      </head>
       <body>
         <a href="#main" className="sr-only">
           Skip to content

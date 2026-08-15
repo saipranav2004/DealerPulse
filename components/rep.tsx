@@ -214,7 +214,7 @@ export function RepFunnel({ funnel }: { funnel: FunnelResult }) {
     <Panel
       title="Funnel"
       className="c4"
-      aside={<span className="chip num">n = {funnel.totalLeads}</span>}
+      aside={<span className="chip"><span className="num">{funnel.totalLeads}</span> leads</span>}
       footer={<p className="t-micro">Stages under 10 leads show counts only — no rate is published.</p>}
     >
       <div>
@@ -239,7 +239,7 @@ export function RepFunnel({ funnel }: { funnel: FunnelResult }) {
                   <span className="fnl-arrow">↓</span>
                   <div className="fnl-tin">
                     {step.conversion.value === null ? (
-                      <LowN n={step.fromCount} note={`n = ${step.fromCount}`} />
+                      <LowN n={step.fromCount} note={`${step.fromCount} leads`} />
                     ) : (
                       <span className="fnl-pct">{formatPercentValue(step.conversion.value, 0)}</span>
                     )}
@@ -320,6 +320,7 @@ export function RepOpenLeads({
           <p className="t-small">No open leads. Everything assigned to this rep has reached an outcome.</p>
         </div>
       ) : (
+        <div className="scrollx">
         <table className="tbl tbl-hover">
           <thead>
             <tr>
@@ -359,6 +360,7 @@ export function RepOpenLeads({
             })}
           </tbody>
         </table>
+        </div>
       )}
     </Panel>
   );

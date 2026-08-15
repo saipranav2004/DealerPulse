@@ -30,7 +30,10 @@ export function RateText({
 }) {
   if (rate.value === null) {
     return (
-      <span className={className ?? 'dim'} title={`Insufficient data — n = ${rate.n}`}>
+      <span
+        className={className ?? 'dim'}
+        title={`Too few leads to show a rate — ${rate.n} in this selection`}
+      >
         —
       </span>
     );
@@ -201,7 +204,7 @@ export function LowN({ n, note }: { n: number; note?: string }) {
   return (
     <span className="lown">
       <Glyph kind="info" />
-      {note ?? `n = ${n} · needs 10+`}
+      {note ?? `Only ${n} ${n === 1 ? 'lead' : 'leads'} — too few to show a rate`}
     </span>
   );
 }
