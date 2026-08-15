@@ -188,7 +188,7 @@ export default async function ActionCenterPage({
               </div>
               <span className="sp" />
               {branchCounts.length > 0 ? (
-                <div style={{ textAlign: 'right' }}>
+                <div className="queue-branches" style={{ textAlign: 'right' }}>
                   <p className="t-label" style={{ marginBottom: 3 }}>
                     By branch
                   </p>

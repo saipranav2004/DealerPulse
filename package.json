@@ -1,16 +1,13 @@
 {
   "name": "dealerpulse",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
-    "verify": "tsx scripts/verify.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "react": "19.1.0",
@@ -26,8 +23,6 @@
     "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.23",
-    "@eslint/eslintrc": "^3",
-    "vitest": "^3",
-    "tsx": "^4"
+    "@eslint/eslintrc": "^3"
   }
 }

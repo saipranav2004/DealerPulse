@@ -49,6 +49,9 @@ export function TopBar({
       <span className="marker">
         <i className="dot" aria-hidden="true" />
         <span className="marker-hide-sm">Data current as of {DATA_CURRENT_AS_OF}</span>
+        <span className="marker-date-sm" aria-hidden="true">
+          {DATA_CURRENT_AS_OF}
+        </span>
         <span className="sr-only">Data current as of {DATA_CURRENT_AS_OF}</span>
       </span>
       <details className="menu">

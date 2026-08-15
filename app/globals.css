@@ -268,6 +268,7 @@ body {
 .sp { flex: 1; }
 
 .marker { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.marker-date-sm { display: none; }
 .marker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--positive); flex: none; }
 .marker-btn {
   display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3);
@@ -586,16 +587,31 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
   .chk { width: 22px; height: 22px; }
   .filter { height: 44px; }
   .tab { padding: var(--s4); }
+  /* Queue rows become blocks: a row is read one at a time here, not compared
+     across. Every cell is placed explicitly so nothing auto-flows into the
+     wrong track when a value wraps. */
   .q-head { display: none; }
   .q-row {
-    grid-template-columns: 26px 22px minmax(0,1fr) 96px;
-    row-gap: var(--s2);
+    grid-template-columns: 26px 22px minmax(0,1fr) auto;
+    row-gap: 6px;
   }
-  .q-age { grid-column: 3 / 5; text-align: left; }
-  .q-act { grid-column: 3 / 5; justify-content: flex-start; }
+  .q-sev   { grid-column: 1; grid-row: 1 / span 3; height: 100%; min-height: 30px; }
+  .q-row > .chk { grid-column: 2; grid-row: 1; }
+  .q-what  { grid-column: 3; grid-row: 1; }
+  .q-money { grid-column: 4; grid-row: 1; white-space: nowrap; align-self: start; }
+  .q-owner { grid-column: 3 / -1; grid-row: 2; display: block; }
+  .q-age   { grid-column: 3 / -1; grid-row: 2; text-align: left; justify-self: end; }
+  .q-act   { grid-column: 3 / -1; grid-row: 3; justify-content: flex-start; }
+  /* Age sits inline beside the owner rather than on its own line. */
+  .q-age br { display: none; }
+  .q-age .t-micro { margin-left: 6px; }
   .dp { grid-template-columns: 100px 1fr 1fr; }
   .dp-delta { display: none; }
+  /* The org name goes; the data-currency date never does — a bare dot with no
+     label would drop the honesty marker the whole product depends on. */
   .marker-hide-sm { display: none; }
+  .marker-date-sm { display: inline; }
+  .queue-branches { text-align: left !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
