@@ -32,14 +32,20 @@ services — the dataset is a static JSON file imported at build time.
 
 | Route | Screen |
 |---|---|
-| `/` | Executive Overview — the verdict, vital signs, branch comparison |
+| `/` | Executive Overview — the verdict, vital signs, revenue trend, forecast |
+| `/actions` | Action Center — three prioritised queues and the what-if simulator |
+| `/leads` | Leads Explorer — all 510 rows, searchable, sortable, exportable |
+| `/models` | Vehicles — where attention goes versus where the money is |
 | `/branch/[id]` | Branch diagnosis — benchmark funnel, reps, cycle time, losses |
 | `/rep/[id]` | Rep scorecard, with a stated finding for zero-lead managers |
-| `/actions` | Action Center — three prioritised queues and the what-if simulator |
 | `/method` | How the verdict and every threshold is calculated |
 
-A lead opens as a drawer over any screen via `?lead=L0022`. Filters live in the
-URL, so any view is shareable and survives navigation.
+The first four are in the top navigation on every screen. A lead opens as a
+drawer over any screen via `?lead=L0022`. Filters live in the URL, so any view is
+shareable and survives navigation.
+
+Light and dark themes follow the system setting and can be overridden with the
+toggle in the top bar.
 
 ## Structure
 
