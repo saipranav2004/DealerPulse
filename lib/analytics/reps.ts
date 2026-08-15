@@ -11,7 +11,7 @@ import { selectLeads } from '@/lib/filters';
 import { firstEntryAt, isDelivered, isOpen, isStalledOrder } from '@/lib/lead';
 import { median, rate, sumBy, wholeHoursBetween } from '@/lib/stats';
 import type { Dataset } from '@/lib/data';
-import type { BranchId, Filters, Rate, RepId, RepRole } from '@/lib/types';
+import type { BranchId, Filters, Rate, RepId, RepRole, Scope } from '@/lib/types';
 
 export interface RepRollup {
   repId: RepId;
@@ -27,6 +27,12 @@ export interface RepRollup {
   medianHoursToFirstContact: number | null;
   /** Leads that were ever contacted, the denominator behind the median above. */
   contactedLeads: number;
+  /** Share of this rep's leads that were ever contacted. Guarded. */
+  contactedRate: Rate;
+  /** Leads with no contacted event at all — the number a rep personally controls. */
+  neverContactedCount: number;
+  /** `neverContactedCount` as a share of leads handled. Guarded. */
+  neverContactedRate: Rate;
   openCount: number;
   openValue: number;
   /** Current status `order_placed` with no delivery record. */
@@ -57,6 +63,9 @@ export function computeReps(dataset: Dataset, filters: Filters = {}): RepsResult
       const contactedAt = firstEntryAt(lead, 'contacted');
       if (contactedAt) hoursToContact.push(wholeHoursBetween(lead.createdAt, contactedAt));
     }
+    // A lead is "ever contacted" exactly when it has a contacted entry, which
+    // is the same population the median above is measured over.
+    const everContacted = hoursToContact.length;
 
     return {
       repId: rep.id,
@@ -69,7 +78,10 @@ export function computeReps(dataset: Dataset, filters: Filters = {}): RepsResult
       deliveredRevenue: sumBy(delivered, (lead) => lead.dealValue),
       winRate: rate(delivered.length, leads.length),
       medianHoursToFirstContact: median(hoursToContact),
-      contactedLeads: hoursToContact.length,
+      contactedLeads: everContacted,
+      contactedRate: rate(everContacted, leads.length),
+      neverContactedCount: leads.length - everContacted,
+      neverContactedRate: rate(leads.length - everContacted, leads.length),
       openCount: open.length,
       openValue: sumBy(open, (lead) => lead.dealValue),
       stalledCount: stalled.length,
@@ -105,6 +117,25 @@ export function rankRepsByWinRate(
     return b.leadsHandled - a.leadsHandled;
   });
   return sorted.slice(0, limit);
+}
+
+/**
+ * Median whole hours from lead creation to first contact, across every lead in
+ * scope that was ever contacted. This is the benchmark a rep's own median is
+ * marked against — note that it is not the same as the whole-day dwell median,
+ * which floors to a coarser number.
+ */
+export function groupMedianHoursToFirstContact(
+  dataset: Dataset,
+  filters: Filters = {},
+  scope: Scope = { kind: 'company' },
+): number | null {
+  const hours: number[] = [];
+  for (const lead of selectLeads(dataset, filters, scope)) {
+    const contactedAt = firstEntryAt(lead, 'contacted');
+    if (contactedAt) hours.push(wholeHoursBetween(lead.createdAt, contactedAt));
+  }
+  return median(hours);
 }
 
 /** Min and max lead load across reps holding at least one lead. */

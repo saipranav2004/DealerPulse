@@ -45,6 +45,22 @@ describe('computeKpiSet — company totals (VERIFY.md)', () => {
   it('accounts for every lead as delivered, lost or open', () => {
     expect(kpis.deliveredUnits + kpis.lostCount + kpis.openPipelineCount).toBe(510);
   });
+
+  it('breaks open leads down by the stage they sit in', () => {
+    expect(kpis.openByStage).toEqual([
+      { stage: 'new', count: 5, value: expect.any(Number) },
+      { stage: 'contacted', count: 10, value: expect.any(Number) },
+      { stage: 'test_drive', count: 6, value: expect.any(Number) },
+      { stage: 'negotiation', count: 3, value: expect.any(Number) },
+      { stage: 'order_placed', count: 38, value: expect.any(Number) },
+    ]);
+    expect(kpis.openByStage.reduce((sum, s) => sum + s.count, 0)).toBe(62);
+    expect(kpis.openByStage.reduce((sum, s) => sum + s.value, 0)).toBe(kpis.openPipelineValue);
+  });
+
+  it('excludes delivered from the open breakdown', () => {
+    expect(kpis.openByStage.some((s) => s.stage === 'delivered')).toBe(false);
+  });
 });
 
 describe('computeKpiSet — scoped', () => {

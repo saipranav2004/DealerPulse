@@ -18,6 +18,8 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Standalone Node build tool for the design documents, not app source.
+      "docs/design/src/build.js",
     ],
   },
 ];

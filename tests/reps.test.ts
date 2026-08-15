@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeReps, leadLoadRange, rankRepsByWinRate } from '@/lib/analytics/reps';
+import {
+  computeReps,
+  groupMedianHoursToFirstContact,
+  leadLoadRange,
+  rankRepsByWinRate,
+} from '@/lib/analytics/reps';
 import { getDataset } from '@/lib/data';
 
 const dataset = getDataset();
@@ -116,6 +121,75 @@ describe('computeReps — median hours to first contact', () => {
     for (const rep of result.active) {
       expect(rep.contactedLeads).toBeLessThanOrEqual(rep.leadsHandled);
     }
+  });
+});
+
+describe('computeReps — guarded contact rates', () => {
+  it('reports contacted and never-contacted as guarded rates', () => {
+    const venkat = result.reps.find((rep) => rep.name === 'Venkat Mishra');
+    expect(venkat).toBeDefined();
+    if (!venkat) return;
+    expect(venkat.leadsHandled).toBe(22);
+    expect(venkat.contactedLeads).toBe(10);
+    expect(venkat.neverContactedCount).toBe(12);
+    expect(((venkat.contactedRate.value ?? 0) * 100).toFixed(1)).toBe('45.5');
+    expect(((venkat.neverContactedRate.value ?? 0) * 100).toFixed(1)).toBe('54.5');
+  });
+
+  it('keeps contacted and never-contacted complementary', () => {
+    for (const rep of result.active) {
+      expect(rep.contactedLeads + rep.neverContactedCount).toBe(rep.leadsHandled);
+    }
+  });
+
+  it('suppresses both rates for a zero-lead rep', () => {
+    for (const rep of result.inactive) {
+      expect(rep.contactedRate.value).toBeNull();
+      expect(rep.neverContactedRate.value).toBeNull();
+      expect(rep.neverContactedCount).toBe(0);
+    }
+  });
+
+  it('suppresses both rates under a filter that leaves too few leads', () => {
+    const narrow = computeReps(dataset, { branchIds: ['B3'], models: ['Camry'] });
+    const withFew = narrow.active.filter((rep) => rep.leadsHandled > 0 && rep.leadsHandled < 10);
+    expect(withFew.length).toBeGreaterThan(0);
+    for (const rep of withFew) {
+      expect(rep.contactedRate.value).toBeNull();
+      expect(rep.winRate.value).toBeNull();
+    }
+  });
+});
+
+describe('groupMedianHoursToFirstContact', () => {
+  it('is 46 hours across the 391 leads that were ever contacted', () => {
+    expect(groupMedianHoursToFirstContact(dataset)).toBe(46);
+  });
+
+  /**
+   * Guards a real mistake: the whole-day dwell median for new → contacted is
+   * 1 day, which reads as "within 24 hours". The true median is 46 hours, so
+   * some reps who look slow against 24h are in fact at or under the benchmark.
+   */
+  it('is not the same as the whole-day dwell median', () => {
+    const hours = groupMedianHoursToFirstContact(dataset);
+    expect(hours).not.toBeNull();
+    expect(hours).toBeGreaterThan(24);
+    expect(Math.floor((hours ?? 0) / 24)).toBe(1);
+  });
+
+  it('does not mark the fastest Lakeside rep as slow', () => {
+    const groupHours = groupMedianHoursToFirstContact(dataset) ?? 0;
+    const vikram = result.reps.find((rep) => rep.name === 'Vikram Patel');
+    expect(vikram?.medianHoursToFirstContact).toBe(42);
+    expect(vikram?.medianHoursToFirstContact ?? 0).toBeLessThan(groupHours);
+  });
+
+  it('returns null when nobody in scope was contacted', () => {
+    const manager = dataset.reps.find((rep) => rep.role === 'branch_manager');
+    expect(manager).toBeDefined();
+    if (!manager) return;
+    expect(groupMedianHoursToFirstContact(dataset, {}, { kind: 'rep', repId: manager.id })).toBeNull();
   });
 });
 

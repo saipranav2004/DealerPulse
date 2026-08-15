@@ -37,6 +37,28 @@ describe('computeLossAnalysis — where deals die (VERIFY.md)', () => {
   it('records no losses after an order was placed', () => {
     expect(result.byStage.some((s) => s.stage === 'order_placed')).toBe(false);
   });
+
+  it('reports the pre-test-drive share as a guarded rate', () => {
+    expect(result.preTestDriveCount).toBe(114 + 81);
+    expect(result.preTestDriveShare.value).not.toBeNull();
+    expect(((result.preTestDriveShare.value ?? 0) * 100).toFixed(0)).toBe('68');
+  });
+
+  /**
+   * Guards a real bug found in review: the overview footer divided these two
+   * numbers itself and rendered "100%" for a filter that matched one lost lead.
+   */
+  it('withholds the share when there are too few losses to publish one', () => {
+    const tiny = computeLossAnalysis(dataset, {
+      branchIds: ['B3'],
+      models: ['Camry'],
+      sources: ['auto_expo'],
+    });
+    expect(tiny.lostCount).toBeLessThan(10);
+    expect(tiny.lostCount).toBeGreaterThan(0);
+    expect(tiny.preTestDriveShare.value).toBeNull();
+    expect(tiny.preTestDriveShare.reason).toBe('insufficient_data');
+  });
 });
 
 describe('computeLossAnalysis — reasons', () => {

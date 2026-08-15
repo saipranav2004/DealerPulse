@@ -47,6 +47,11 @@ describe('computeCohorts — leads created per month (VERIFY.md)', () => {
     expect(cohorts.reduce((sum, c) => sum + c.delivered, 0)).toBe(160);
   });
 
+  it('counts never-contacted leads per creation month', () => {
+    expect(cohorts.map((c) => c.neverContacted)).toEqual([11, 14, 13, 17, 19, 23, 22]);
+    expect(cohorts.reduce((sum, c) => sum + c.neverContacted, 0)).toBe(119);
+  });
+
   it('accounts for every cohort lead as delivered, lost or open', () => {
     for (const point of cohorts) {
       expect(point.delivered + point.lost + point.stillOpen).toBe(point.leadsCreated);

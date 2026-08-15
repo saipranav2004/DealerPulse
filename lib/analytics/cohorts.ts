@@ -14,7 +14,7 @@
 
 import { NOW, toMonthKey } from '@/lib/data';
 import { selectLeads } from '@/lib/filters';
-import { isDelivered, isLost, isOpen } from '@/lib/lead';
+import { isDelivered, isLost, isOpen, reachedStage } from '@/lib/lead';
 import { countWhere, rate, sumBy, wholeDaysBetween } from '@/lib/stats';
 import type { Dataset } from '@/lib/data';
 import type { Filters, MonthKey, Rate, Scope } from '@/lib/types';
@@ -33,6 +33,8 @@ export interface CohortPoint {
   delivered: number;
   lost: number;
   stillOpen: number;
+  /** Of the leads created this month, how many were never contacted at all. */
+  neverContacted: number;
   createdValue: number;
   deliveredValue: number;
   /** `delivered / leadsCreated`, subject to the low-n guard. */
@@ -96,6 +98,7 @@ export function computeCohorts(
       delivered: delivered.length,
       lost: countWhere(cohortLeads, isLost),
       stillOpen: countWhere(cohortLeads, isOpen),
+      neverContacted: countWhere(cohortLeads, (lead) => !reachedStage(lead, 'contacted')),
       createdValue: sumBy(cohortLeads, (lead) => lead.dealValue),
       deliveredValue: sumBy(delivered, (lead) => lead.dealValue),
       conversionToDate: rate(delivered.length, cohortLeads.length),

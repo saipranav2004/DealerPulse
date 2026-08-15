@@ -42,6 +42,12 @@ export interface LossAnalysisResult {
   byReason: LossReasonBucket[];
   /** Lost leads with no `lost_reason` recorded — the reconciled ones. */
   unspecifiedCount: number;
+  /**
+   * Share of losses that happened before a test drive — the headline "deals die
+   * early" figure. Guarded, so a single lost lead never renders as 100%.
+   */
+  preTestDriveShare: Rate;
+  preTestDriveCount: number;
 }
 
 /** Stage-before-loss and reason breakdowns for lost leads in scope. */
@@ -95,11 +101,17 @@ export function computeLossAnalysis(
       return b.count - a.count || a.reason.localeCompare(b.reason);
     });
 
+  const preTestDriveCount = byStage
+    .filter((bucket) => bucket.stage === 'new' || bucket.stage === 'contacted')
+    .reduce((sum, bucket) => sum + bucket.count, 0);
+
   return {
     lostCount: lost.length,
     lostValue,
     byStage,
     byReason,
     unspecifiedCount: reasonBuckets.get(null)?.count ?? 0,
+    preTestDriveCount,
+    preTestDriveShare: rate(preTestDriveCount, lost.length),
   };
 }

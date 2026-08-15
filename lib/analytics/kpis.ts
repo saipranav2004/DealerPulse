@@ -7,10 +7,11 @@
  */
 
 import { previousPeriod, selectLeads } from '@/lib/filters';
-import { isDelivered, isLost, isOpen } from '@/lib/lead';
+import { isDelivered, isLost, isOpen, reachedStage } from '@/lib/lead';
 import { countWhere, mean, rate, relativeChange, sumBy } from '@/lib/stats';
 import type { Dataset } from '@/lib/data';
-import type { Filters, Rate, Scope } from '@/lib/types';
+import { FUNNEL_STAGES } from '@/lib/types';
+import type { Filters, FunnelStage, Rate, Scope } from '@/lib/types';
 
 export interface KpiSet {
   totalLeads: number;
@@ -26,6 +27,12 @@ export interface KpiSet {
   averageDealValue: number | null;
   /** Mean `deal_value` across delivered leads only. */
   averageDeliveredDealValue: number | null;
+  /** Leads with no `contacted` event anywhere in their history. */
+  neverContactedCount: number;
+  /** `neverContactedCount` as a share of all leads in scope. */
+  neverContactedRate: Rate;
+  /** Open leads broken down by the stage they currently sit in, in funnel order. */
+  openByStage: { stage: FunnelStage; count: number; value: number }[];
 }
 
 export interface KpiDelta {
@@ -63,6 +70,7 @@ export function computeKpiSet(
   const delivered = leads.filter(isDelivered);
   const open = leads.filter(isOpen);
   const lost = leads.filter(isLost);
+  const neverContacted = countWhere(leads, (lead) => !reachedStage(lead, 'contacted'));
 
   return {
     totalLeads: leads.length,
@@ -75,6 +83,16 @@ export function computeKpiSet(
     lostValue: sumBy(lost, (lead) => lead.dealValue),
     averageDealValue: mean(leads.map((lead) => lead.dealValue)),
     averageDeliveredDealValue: mean(delivered.map((lead) => lead.dealValue)),
+    neverContactedCount: neverContacted,
+    neverContactedRate: rate(neverContacted, leads.length),
+    openByStage: FUNNEL_STAGES.filter((stage) => stage !== 'delivered').map((stage) => {
+      const atStage = open.filter((lead) => lead.status === (stage as FunnelStage));
+      return {
+        stage,
+        count: atStage.length,
+        value: sumBy(atStage, (lead) => lead.dealValue),
+      };
+    }),
   };
 }
 
