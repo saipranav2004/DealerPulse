@@ -341,3 +341,22 @@ export const EMPTY_FILTER_STATE: FilterState = {
   models: [],
   sources: [],
 };
+
+/**
+ * A browser-tab title for a filtered view.
+ *
+ * Every screen shipped with the same title — "DealerPulse" — so five open tabs
+ * were five identical tabs, and browser history and bookmarks recorded nothing
+ * about which view had been saved. The filters are already in the URL; putting
+ * their summary in the title is what makes a tab, a bookmark and a history
+ * entry tell you what they are.
+ */
+export function pageTitle(
+  screen: string,
+  state: FilterState,
+  branchName: (id: string) => string,
+): string {
+  const parts = describeFilters(state, branchName);
+  const scope = parts.length > 0 ? ` · ${parts.join(' · ')}` : '';
+  return `${screen}${scope} — DealerPulse`;
+}

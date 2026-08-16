@@ -14,6 +14,7 @@ import { getDataset } from '@/lib/data';
 import { buildCommandIndex } from '@/lib/command-index';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import {
+  pageTitle,
   SOURCE_LABELS,
   hrefWithFilters,
   parseFilterState,
@@ -69,6 +70,18 @@ const STAGE_LABEL: Record<LeadStatus, string> = {
   delivered: 'Delivered',
   lost: 'Lost',
 };
+
+/**
+ * A tab that says which view it is. Every screen shipped titled "DealerPulse",
+ * so five open tabs were indistinguishable and bookmarks recorded nothing.
+ */
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
+  const dataset = getDataset();
+  const state = parseFilterState(params, dataset.branches.map((b) => b.id));
+  const name = (id: string) => (dataset.branches.find((b) => b.id === id)?.name ?? id).replace(' Toyota', '');
+  return { title: pageTitle('Leads', state, name) };
+}
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
@@ -154,6 +167,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       />
 
       <main id="main">
+        <h1 className="sr-only">Leads — {formatNumber(table.counts.all)} in this selection</h1>
         <div
           style={{
             background: 'var(--surface)',

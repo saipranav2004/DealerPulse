@@ -16,6 +16,7 @@ import { buildCommandIndex } from '@/lib/command-index';
 import { selectLeads } from '@/lib/filters';
 import { counted, formatCurrency, formatNumber } from '@/lib/format';
 import {
+  pageTitle,
   hrefWithFilters,
   parseFilterState,
   parseViewAs,
@@ -62,6 +63,18 @@ function toRow(item: QueueItem, actionLabel: string, href: string, note?: string
     actionLabel,
     href,
   };
+}
+
+/**
+ * A tab that says which view it is. Every screen shipped titled "DealerPulse",
+ * so five open tabs were indistinguishable and bookmarks recorded nothing.
+ */
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
+  const dataset = getDataset();
+  const state = parseFilterState(params, dataset.branches.map((b) => b.id));
+  const name = (id: string) => (dataset.branches.find((b) => b.id === id)?.name ?? id).replace(' Toyota', '');
+  return { title: pageTitle('Act now', state, name) };
 }
 
 export default async function ActionCenterPage({
@@ -172,6 +185,13 @@ export default async function ActionCenterPage({
       />
 
       <main id="main">
+        {/* The page had no h1 — its name existed only in the breadcrumb and the
+            document title, so a screen reader's heading outline began at h2
+            with nothing above it. Visually the tabs below already say this, so
+            the heading is for the outline rather than the layout. */}
+        <h1 className="sr-only">
+          Act now — {formatNumber(actions.stalled.count + actions.cold.count)} open items
+        </h1>
         {/* Said once, plainly, rather than left for a reader to infer from a
             count that does not move when they change the period. */}
         <p className="queue-note">

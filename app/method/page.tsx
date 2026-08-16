@@ -12,6 +12,8 @@ import { getDataset, MIN_RATE_DENOMINATOR, MIN_VERDICT_DENOMINATOR, NOW } from '
 import { formatCurrency, formatNumber, formatPercentValue } from '@/lib/format';
 import { TopBar, Breadcrumb } from '@/components/chrome';
 
+export const metadata = { title: 'How this was calculated — DealerPulse' };
+
 export default function MethodPage() {
   const dataset = getDataset();
   const verdict = computeVerdict(dataset);

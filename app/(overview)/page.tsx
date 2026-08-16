@@ -21,6 +21,7 @@ import { getDataset } from '@/lib/data';
 import { buildCommandIndex } from '@/lib/command-index';
 import { selectLeads } from '@/lib/filters';
 import {
+  pageTitle,
   hrefWithFilters,
   parseFilterState,
   parseViewAs,
@@ -56,6 +57,18 @@ import { EmptyByFilter } from '@/components/states';
  * build stamp in the footer makes a recurrence visible instead of silent.
  */
 export const dynamic = 'force-dynamic';
+
+/**
+ * A tab that says which view it is. Every screen shipped titled "DealerPulse",
+ * so five open tabs were indistinguishable and bookmarks recorded nothing.
+ */
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
+  const dataset = getDataset();
+  const state = parseFilterState(params, dataset.branches.map((b) => b.id));
+  const name = (id: string) => (dataset.branches.find((b) => b.id === id)?.name ?? id).replace(' Toyota', '');
+  return { title: pageTitle('Overview', state, name) };
+}
 
 export default async function OverviewPage({
   searchParams,
