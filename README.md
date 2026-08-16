@@ -4,7 +4,7 @@ Sales performance for a five-branch Toyota dealership group in India.
 Built for one user: the group CEO, who opens it for ninety seconds between
 meetings and needs to leave with a sentence he can act on.
 
-**Live:** https://dealer-pulse-ecru.vercel.app/
+**Live:** https://dealer-pulse-ten.vercel.app/
 
 See [`DECISIONS.md`](./DECISIONS.md) for what was built and why.
 
