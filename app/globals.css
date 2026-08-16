@@ -245,7 +245,7 @@ body {
 .row-focus { background: var(--accent-wash); }
 .row-focus td { font-weight: 500; }
 .sortbtn {
-  display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0;
+  display: inline-flex; align-items: center; min-height: 24px; gap: 4px; background: none; border: 0; padding: 0;
   font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer;
 }
 .sortbtn:hover { color: var(--ink); }
@@ -274,7 +274,11 @@ body {
   height: 38px; padding: 0 var(--s5);
   background: var(--surface); border-bottom: 1px solid var(--rule);
 }
-.mark { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink); text-decoration: none; }
+.mark {
+  font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--ink); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 24px;
+}
 .topbar .org { font-size: 12px; color: var(--ink-2); }
 .sp { flex: 1; }
 
@@ -400,7 +404,10 @@ body {
 .subset-bar b { font-weight: 600; }
 
 .crumb { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-3); flex-wrap: wrap; }
-.crumb a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--rule-strong); }
+.crumb a {
+  color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--rule-strong);
+  display: inline-flex; align-items: center; min-height: 24px;
+}
 .crumb a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 .crumb .cur { color: var(--ink); font-weight: 500; }
 
@@ -457,7 +464,13 @@ body {
 .dp-lab { display: none; }
 .dp-h { padding: 0 var(--s3) 6px; border-bottom: 1px solid var(--rule); }
 .dp-cell { padding: 9px var(--s3); border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: var(--s3); min-width: 0; }
-.dp-name { font-size: 12.5px; color: var(--ink-2); text-decoration: none; }
+/* WCAG 2.2 target size is 24px on a pointer tier too. A row link whose box is
+   only as tall as its text was a 16px target on desktop; inline-flex gives it
+   the height without changing the row's own rhythm. */
+.dp-name {
+  font-size: 12.5px; color: var(--ink-2); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 24px;
+}
 .dp-row.is-focus .dp-name { color: var(--ink); font-weight: 600; }
 .dp-row.is-focus .dp-cell { background: var(--accent-wash); }
 .dp-val { font-family: var(--mono); font-size: 12.5px; width: 46px; text-align: right; flex: none; }
@@ -525,13 +538,31 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 .q-sev.s-crit { background: var(--critical); }
 .q-sev.s-warn { background: var(--warning); }
 
+/*
+  The box and the target are two different sizes. The visible square stays
+  16-20px at every tier because a 44px bordered box on a phone reads as an empty
+  image placeholder rather than a control — which is exactly how it looked. The
+  44px WCAG target is delivered by the button's own box, kept transparent, with
+  the square drawn as a centred pseudo-element inside it.
+*/
 .chk {
-  width: 16px; height: 16px; flex: none;
-  border: 1px solid var(--rule-strong); border-radius: 2px; background: var(--surface);
-  display: grid; place-items: center; cursor: pointer; padding: 0; color: transparent;
+  /* The target. Transparent, and sized per tier by the breakpoints below. */
+  width: 24px; height: 24px; flex: none;
+  border: 0; background: none; cursor: pointer; padding: 0;
+  display: grid; place-items: center; color: transparent;
   font-size: 11px; line-height: 1;
+  /* `isolation` keeps the z-index: -1 below from escaping to the page. */
+  position: relative; isolation: isolate;
 }
-.chk[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chk::before {
+  /* The box. Centred in the target, and never grown to match it. */
+  content: ""; position: absolute; inset: 0; margin: auto; z-index: -1;
+  width: 16px; height: 16px;
+  border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--surface);
+}
+.chk[aria-checked="true"] { color: #fff; }
+.chk[aria-checked="true"]::before { background: var(--accent); border-color: var(--accent); }
+.chk:focus-visible::before { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .bulkbar {
   display: flex; align-items: center; gap: var(--s3);
@@ -638,7 +669,7 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 }
 .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .search input {
-  border: 0; outline: 0; background: none; color: var(--ink);
+  border: 0; outline: 0; background: none; color: var(--ink); align-self: stretch; min-height: 24px;
   font-family: var(--sans); font-size: 12.5px; width: 100%; min-width: 0;
 }
 .search input::placeholder { color: var(--ink-3); }
@@ -669,15 +700,24 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 
 /* Table rows: an accent bar scales in from the top, and the row action comes
    up to full strength. The action is in the DOM at rest, so nothing reflows
-   and a screen reader always reaches it. */
-.tbl-hover tbody tr { position: relative; transition: background-color var(--dur-micro) var(--ease-out); }
-.tbl-hover tbody tr::before {
+   and a screen reader always reaches it.
+
+   The bar hangs off the row's FIRST CELL, never off the `<tr>`. A pseudo-element
+   on a `display: table-row` is wrapped in an anonymous table cell, and that cell
+   takes column 0 — which silently pushed every body row one column right of its
+   own header, at every width, on every table carrying `.tbl-hover`. It was
+   invisible on a wide screen because the columns were roomy enough to absorb the
+   shift; on a phone it put "Customer" over the value column. A cell is a normal
+   block container, so the same bar drawn there costs nothing. */
+.tbl-hover tbody tr { transition: background-color var(--dur-micro) var(--ease-out); }
+.tbl-hover tbody tr > *:first-child { position: relative; }
+.tbl-hover tbody tr > *:first-child::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
   background: var(--accent); transform: scaleY(0); transform-origin: top;
   transition: transform var(--dur-micro) var(--ease-out);
 }
-.tbl-hover tbody tr:hover::before,
-.tbl-hover tbody tr:focus-within::before { transform: scaleY(1); }
+.tbl-hover tbody tr:hover > *:first-child::before,
+.tbl-hover tbody tr:focus-within > *:first-child::before { transform: scaleY(1); }
 .tbl-hover tbody tr .btn { opacity: .55; transition: opacity var(--dur-micro) var(--ease-out); }
 .tbl-hover tbody tr:hover .btn,
 .tbl-hover tbody tr:focus-within .btn { opacity: 1; }
@@ -791,7 +831,7 @@ svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity
   padding: var(--s4) var(--s5) var(--s6);
   font-size: 11px; color: var(--ink-3); background: var(--ground);
 }
-.appfoot a { color: var(--ink-3); }
+.appfoot a { color: var(--ink-3); display: inline-flex; align-items: center; min-height: 24px; }
 .appfoot a:hover { color: var(--ink-2); }
 @media (max-width: 767px) { .appfoot { padding-bottom: 76px; flex-wrap: wrap; } }
 
@@ -883,7 +923,7 @@ svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity
   .t-verdict { font-size: 26px; }
   .verdict-sentence { max-width: 52ch; }
   .c8, .c7, .c5, .c4, .c6 { grid-column: span 12; }
-  .q-head, .q-row { grid-template-columns: 26px 22px minmax(0,1fr) 92px 104px 44px; }
+  .q-head, .q-row { grid-template-columns: 26px 24px minmax(0,1fr) 92px 104px 44px; }
   .q-owner { display: none; }
   .dp { grid-template-columns: 116px 1fr 1fr; }
 }
@@ -908,12 +948,25 @@ svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity
   */
   .menu-item { min-height: 44px; }
   .seg a { min-height: 44px; }
+  /* Wayfinding and chrome links are navigation, not prose, so they carry a
+     fingertip target too. */
+  .crumb a { display: inline-flex; align-items: center; min-height: 44px; }
+  .appfoot a { display: inline-flex; align-items: center; min-height: 44px; }
+  /* The input, not just its bordered wrapper, has to be the 44px target — a
+     tap landing in the wrapper's padding does not focus the field. */
+  .search { min-height: 44px; padding: 0 9px; }
+  .search input { align-self: stretch; min-height: 44px; }
   .tab { min-height: 44px; display: inline-flex; align-items: center; }
   .sortbtn { min-height: 44px; display: inline-flex; align-items: center; gap: 4px; }
-  .chk { width: 28px; height: 28px; }
-  .q-row > .chk { width: 44px; height: 44px; margin: -8px 0 -8px -8px; }
+  /* Touch tier: the target grows to 44px, the box only to 18px. Negative
+     margins give the extra target width back to the layout so the queue's
+     column rhythm is unchanged by it. */
+  .chk { width: 44px; height: 44px; margin: -10px; }
+  .chk::before { width: 18px; height: 18px; }
   .slider-input { height: 44px; }
-  .tbl .dp-name, .dp-cell .dp-name { display: inline-block; padding: 13px 0; }
+  /* `block`, not `inline-block`: a short name like "Hilux" gave a 30px-wide
+     target, and the row it opens is the full width of the cell. */
+  .tbl .dp-name, .dp-cell .dp-name { display: block; padding: 13px 0; }
   .dp-cell:first-child .dp-name { display: block; }
   /* Wrap rather than overflow once the shortened labels still do not fit. */
   .topbar { height: auto; min-height: 38px; flex-wrap: wrap; padding-top: 5px; padding-bottom: 5px; row-gap: 4px; }
@@ -927,7 +980,6 @@ svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity
   .dist-wrap { display: none; }
   .btn { height: 44px; padding: 0 14px; }
   .btn-sm { height: 44px; }
-  .chk { width: 22px; height: 22px; }
   .filter { height: 44px; }
   .tab { padding: var(--s4); }
   /* Queue rows become blocks: a row is read one at a time here, not compared
@@ -935,7 +987,7 @@ svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity
      wrong track when a value wraps. */
   .q-head { display: none; }
   .q-row {
-    grid-template-columns: 26px 22px minmax(0,1fr) auto;
+    grid-template-columns: 26px 24px minmax(0,1fr) auto;
     row-gap: 6px;
   }
   /* Explicit spans, never `-1`: with no explicit row template, `-1` resolves
@@ -1080,24 +1132,6 @@ svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity
      It keeps its real size and scrolls, like a wide table. */
   .chart-wide { min-width: 460px; }
 
-  .tbl-cards thead { display: none; }
-  .tbl-cards tbody tr {
-    display: grid; grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: var(--s3); row-gap: 4px;
-    padding: var(--s3) var(--s4); border-bottom: 1px solid var(--rule);
-  }
-  .tbl-cards tbody td { display: block; padding: 0; border: 0; }
-  .tbl-cards .cell-name  { grid-column: 1; grid-row: 1; padding-left: 0 !important; }
-  .tbl-cards .cell-value { grid-column: 2; grid-row: 1; text-align: right; font-weight: 500; white-space: nowrap; }
-  .tbl-cards .cell-model { grid-column: 1; grid-row: 2; }
-  .tbl-cards .cell-stage { grid-column: 2; grid-row: 2; text-align: right; }
-  /* The customer name already opens the same drawer, so a full-width button
-     on every row was 25 redundant controls and doubled the list's height. The
-     chevron carries the affordance instead. */
-  .tbl-cards .cell-act { display: none; }
-  .tbl-cards .dp-name { font-size: 14px; font-weight: 600; }
-  .tbl-cards .dp-name::after { content: " ›"; color: var(--ink-3); font-weight: 400; }
-
   /* Branch comparison: one card per branch. Two rails in ~90px each was the
      reason "58.2%" rendered as "58". */
   .dp { grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
@@ -1113,6 +1147,103 @@ svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity
   .dp-row.is-focus .dp-cell:first-child { background: var(--accent-wash); }
   .dp-val { width: 52px; }
   .dp-delta { display: none; }
+}
+
+/* ==========================================================================
+   Record cards — the phone layout for every data table
+
+   A column only works while the reader can see the header that names it. On a
+   393px screen a four-column table has ~80px per column, so either the header
+   is scrolled out of view or the number is, and in both cases a figure is
+   stranded from its label. Below 768px each row therefore becomes a card: the
+   identity across the top, then every measure as its own labelled stat. The
+   label comes from `data-l` on the cell, so it is the *same string* as the
+   column header — there is no second copy to drift.
+
+   This block is deliberately last in the file. `.tbl-rc td.fold` has to beat
+   the `.fold { display: none }` rules from the fold breakpoints above, and
+   several of those match at equal specificity.
+   ========================================================================== */
+@media (max-width: 767px) {
+  .tbl-rc { display: block; width: 100%; min-width: 0; }
+  .tbl-rc thead { display: none; }
+  .tbl-rc tbody { display: block; }
+  /* Three tracks, not two: the common card carries three measures, and in a
+     2-up grid the third always wrapped alone onto a row of its own. */
+  .tbl-rc tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: var(--s3);
+    row-gap: var(--s3);
+    padding: var(--s3) var(--s4);
+    border-bottom: 1px solid var(--rule);
+  }
+  .tbl-rc tbody tr:last-child { border-bottom: 0; }
+  .tbl-rc tbody td {
+    display: block; border: 0; text-align: left; min-width: 0;
+    padding: 0 !important; white-space: normal;
+  }
+
+  /*
+    The headline number rides the title line rather than becoming the first of
+    a stack of labelled stats: it is the one figure the row exists to report,
+    and the title already says what it measures. That alone takes a five-line
+    card down to three.
+  */
+  .tbl-rc td[data-rc="id"] { grid-column: 1 / 3; grid-row: 1; font-size: 14px; font-weight: 600; }
+  .tbl-rc td[data-rc="key"] {
+    grid-column: 3; grid-row: 1;
+    text-align: right; font-weight: 600; white-space: nowrap; align-self: center;
+  }
+  /* With no headline number the title takes the full width instead of leaving
+     a hole beside it. */
+  .tbl-rc tbody tr:not(:has(td[data-rc="key"])) td[data-rc="id"] { grid-column: 1 / -1; }
+  .tbl-rc td[data-rc="id"] .dp-name {
+    display: block; font-size: 14px; font-weight: 600;
+    /* 44px of touch target, given back visually so the card stays compact. */
+    padding: 12px 0; margin: -10px 0 -9px;
+  }
+  .tbl-rc td[data-rc="id"] .dp-name::after { content: " ›"; color: var(--ink-3); font-weight: 400; }
+  /* A measure that needs the whole width — a long cause, a note. */
+  .tbl-rc td[data-rc="wide"] { grid-column: 1 / -1; }
+  .tbl-rc td[data-rc="hide"] { display: none; }
+
+  /* Every measure carries the column name it was filed under. */
+  .tbl-rc td[data-l]::before {
+    content: attr(data-l);
+    display: block;
+    font: 500 10px/1.5 var(--sans);
+    letter-spacing: .07em; text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 1px;
+  }
+  /* …except the headline, which the title already names. Stated after the rule
+     above because both match at the same specificity. */
+  .tbl-rc td[data-rc="key"][data-l]::before { content: none; }
+
+  /*
+    A folded column is already a statement that the column is secondary, and a
+    card that stacks all nine of them is just the wide table turned on its side.
+    So the fold is honoured here too, and a table opts a column back in with
+    `data-rc="show"` when it earns its place on a phone. `.unfold` — the line
+    that stood in for the folded columns under the name — is redundant now that
+    those columns come back as labelled stats.
+  */
+  .tbl-rc td.fold, .tbl-rc td.fold-sm { display: none; }
+  .tbl-rc td[data-rc="show"] { display: block; }
+  .tbl-rc .unfold { display: none; }
+  .tbl-rc td.pin { position: static; box-shadow: none; background: transparent; }
+  /* The hover rail would cut across the card's corner. */
+  .tbl-rc tbody tr > *:first-child::before { display: none; }
+  /* A card is already a row; the table's own zebra/hover backgrounds stay. */
+  .tbl-rc .r, .tbl-rc .num { text-align: left; }
+}
+
+/* Below ~360px three tracks put the uppercase labels on two lines each. */
+@media (max-width: 379px) {
+  .tbl-rc tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tbl-rc td[data-rc="id"] { grid-column: 1; }
+  .tbl-rc td[data-rc="key"] { grid-column: 2; }
 }
 
 /* The contract. Anything that animates must survive this being applied. */

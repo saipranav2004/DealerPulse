@@ -322,7 +322,7 @@ export function RepOpenLeads({
         </div>
       ) : (
         <div className="scrollx">
-        <table className="tbl tbl-hover">
+        <table className="tbl tbl-hover tbl-rc">
           <thead>
             <tr>
               <th style={{ paddingLeft: 16 }}>Customer</th>
@@ -338,16 +338,16 @@ export function RepOpenLeads({
               const age = ageOf(lead);
               return (
                 <tr key={lead.id}>
-                  <td style={{ paddingLeft: 16 }}>
+                  <td data-rc="id" style={{ paddingLeft: 16 }}>
                     <strong>{lead.customerName}</strong>
                   </td>
-                  <td>
+                  <td data-l="Stage">
                     <span className="chip">{STAGE_LABEL[lead.status as FunnelStage] ?? lead.status}</span>
                   </td>
-                  <td className="muted">{lead.model}</td>
-                  <td className="r num">{formatCurrency(lead.dealValue)}</td>
-                  <td className={age > 30 ? 'r num crit' : 'r num'}>{formatNumber(age)} d</td>
-                  <td className="r" style={{ paddingRight: 16 }}>
+                  <td className="muted" data-l="Model">{lead.model}</td>
+                  <td className="r num" data-rc="key" data-l="Value">{formatCurrency(lead.dealValue)}</td>
+                  <td className={age > 30 ? 'r num crit' : 'r num'} data-l="Idle">{formatNumber(age)} d</td>
+                  <td className="r" data-rc="wide" style={{ paddingRight: 16 }}>
                     <Link
                       href={hrefWithFilters(basePath, filters, { lead: lead.id })}
                       scroll={false}

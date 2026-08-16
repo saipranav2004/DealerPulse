@@ -182,7 +182,7 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
                   {/* Below 900px the four `fold` columns drop out, leaving the
                       comparison the panel is actually about: leads in, cars out,
                       money earned. */}
-                  <table className="tbl tbl-hover tbl-fold">
+                  <table className="tbl tbl-hover tbl-fold tbl-rc">
                     <thead>
                       <tr>
                         <th style={{ paddingLeft: 16 }}>Vehicle</th>
@@ -201,7 +201,7 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
                     <tbody>
                       {models.models.map((model) => (
                         <tr key={model.model} className={model.model === top?.model ? 'row-focus' : undefined}>
-                          <td className="pin" style={{ paddingLeft: 16 }}>
+                          <td className="pin" data-rc="id" style={{ paddingLeft: 16 }}>
                             <Link
                               href={`${basePath}${toQueryString({ ...state, models: [model.model] })}`}
                               className="dp-name"
@@ -210,18 +210,24 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
                               {model.model}
                             </Link>
                           </td>
-                          <td className="r num">{formatNumber(model.leads)}</td>
-                          <td className="r num">{model.deliveredUnits}</td>
-                          <td className="r num fold">
+                          <td className="r num" data-l="Leads">
+                            {formatNumber(model.leads)}
+                          </td>
+                          <td className="r num" data-l="Sold">
+                            {model.deliveredUnits}
+                          </td>
+                          <td className="r num fold" data-rc="show" data-l="Leads → sale">
                             <RateText rate={model.winRate} />
                           </td>
-                          <td className="r num fold">
+                          <td className="r num fold" data-l="Average price">
                             {model.averageDealValue === null ? '—' : formatCurrency(model.averageDealValue)}
                           </td>
-                          <td className="r num" style={{ fontWeight: 500 }}>
+                          <td className="r num" data-rc="key" data-l="Revenue" style={{ fontWeight: 500 }}>
                             {formatCurrency(model.deliveredRevenue)}
                           </td>
-                          <td className="r num fold">{formatPercentValue(model.revenueShare, 1)}</td>
+                          <td className="r num fold" data-l="Share of revenue">
+                            {formatPercentValue(model.revenueShare, 1)}
+                          </td>
                           <td
                             className={
                               model.medianCycleDays !== null &&
@@ -230,10 +236,11 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
                                 ? 'r num warn fold'
                                 : 'r num fold'
                             }
+                            data-l="Median days to sell"
                           >
                             {model.medianCycleDays === null ? '—' : `${model.medianCycleDays} d`}
                           </td>
-                          <td className="r num fold-sm" style={{ paddingRight: 16 }}>
+                          <td className="r num fold-sm" data-l="Still open" style={{ paddingRight: 16 }}>
                             {model.openCount}
                           </td>
                         </tr>

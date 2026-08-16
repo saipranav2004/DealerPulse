@@ -397,7 +397,7 @@ export default async function ActionCenterPage({
               </div>
               <div className="panel-bd" style={{ paddingTop: 0 }}>
                 <div className="scrollx">
-                  <table className="tbl tbl-hover tbl-fold-sm">
+                  <table className="tbl tbl-hover tbl-fold-sm tbl-rc">
                     <thead>
                       <tr>
                         <th style={{ paddingLeft: 0 }}>Customer</th>
@@ -410,7 +410,7 @@ export default async function ActionCenterPage({
                     <tbody>
                       {actions.delays.items.slice(0, 12).map((item) => (
                         <tr key={item.leadId}>
-                          <td style={{ paddingLeft: 0 }}>
+                          <td data-rc="id" style={{ paddingLeft: 0 }}>
                             <Link
                               href={hrefWithFilters(basePath, state, { q: 'delays', lead: item.leadId })}
                               scroll={false}
@@ -419,10 +419,10 @@ export default async function ActionCenterPage({
                               {item.customerName}
                             </Link>
                           </td>
-                          <td className="muted fold">{item.branchName.replace(' Toyota', '')}</td>
-                          <td className="muted">{item.delayReason ?? 'Not recorded'}</td>
-                          <td className="r num">{formatCurrency(item.dealValue)}</td>
-                          <td className="r num warn">{item.daysToDeliver}</td>
+                          <td className="muted fold" data-rc="show" data-l="Branch">{item.branchName.replace(' Toyota', '')}</td>
+                          <td className="muted" data-rc="wide" data-l="Cause">{item.delayReason ?? 'Not recorded'}</td>
+                          <td className="r num" data-rc="key" data-l="Value">{formatCurrency(item.dealValue)}</td>
+                          <td className="r num warn" data-l="Days">{item.daysToDeliver}</td>
                         </tr>
                       ))}
                     </tbody>

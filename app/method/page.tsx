@@ -39,7 +39,7 @@ export default function MethodPage() {
                   not by percentage-point gap.
                 </p>
                 <div className="scrollx">
-                <table className="tbl">
+                <table className="tbl tbl-rc">
                   <thead>
                     <tr>
                       <th>Step</th>
@@ -55,14 +55,14 @@ export default function MethodPage() {
                       const isBreak = step.from === verdict.breakStep.from;
                       return (
                         <tr key={`${step.from}-${step.to}`} className={isBreak ? 'row-focus' : undefined}>
-                          <td>
+                          <td data-rc="id">
                             {step.from} → {step.to}
                           </td>
-                          <td className="r num">{formatPercentValue(step.branchRate, 0)}</td>
-                          <td className="r num dim">{formatPercentValue(step.peerRate, 0)}</td>
-                          <td className="r num">{step.leadsLost}</td>
-                          <td className="r num dim">{step.expectedLost.toFixed(1)}</td>
-                          <td className="r num" style={{ fontWeight: isBreak ? 600 : undefined }}>
+                          <td className="r num" data-l="Branch">{formatPercentValue(step.branchRate, 0)}</td>
+                          <td className="r num dim" data-l="Peers">{formatPercentValue(step.peerRate, 0)}</td>
+                          <td className="r num" data-l="Lost">{step.leadsLost}</td>
+                          <td className="r num dim" data-l="Peers would lose">{step.expectedLost.toFixed(1)}</td>
+                          <td className="r num" data-l="Extra" style={{ fontWeight: isBreak ? 600 : undefined }}>
                             {step.extraLost.toFixed(1)}
                           </td>
                         </tr>
@@ -195,13 +195,13 @@ export default function MethodPage() {
                 Derived from this dataset&rsquo;s dwell medians, not round numbers.
               </p>
               <div className="scrollx">
-              <table className="tbl">
+              <table className="tbl tbl-rc">
                 <tbody>
                   {actions.coldThresholds.map((threshold) => (
                     <tr key={threshold.stage}>
-                      <td>{threshold.stage}</td>
-                      <td className="r num dim">median {threshold.normalDays} d</td>
-                      <td className="r num">cold after {threshold.coldAfterDays} d</td>
+                      <td data-rc="id">{threshold.stage}</td>
+                      <td className="r num dim" data-l="Normal">median {threshold.normalDays} d</td>
+                      <td className="r num" data-l="Cold after">cold after {threshold.coldAfterDays} d</td>
                     </tr>
                   ))}
                 </tbody>

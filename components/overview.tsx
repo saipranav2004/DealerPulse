@@ -544,7 +544,7 @@ export function MoneyAtRisk({ stalled, filters }: { stalled: QueueSummary; filte
       ) : (
         <div className="scrollx">
         {/* Four columns do not fit a phone. Branch folds under the name. */}
-        <table className="tbl tbl-hover tbl-fold-sm">
+        <table className="tbl tbl-hover tbl-fold-sm tbl-rc">
           <thead>
             <tr>
               <th style={{ paddingLeft: 16 }}>Customer</th>
@@ -558,15 +558,19 @@ export function MoneyAtRisk({ stalled, filters }: { stalled: QueueSummary; filte
           <tbody>
             {top.map((item) => (
               <tr key={item.leadId}>
-                <td style={{ paddingLeft: 16 }}>
+                <td data-rc="id" style={{ paddingLeft: 16 }}>
                   <Link href={hrefWithFilters('/', filters, { lead: item.leadId })} className="dp-name">
                     {item.customerName}
                   </Link>
                   <div className="t-micro unfold">{item.branchName.replace(' Toyota', '')}</div>
                 </td>
-                <td className="muted fold">{item.branchName.replace(' Toyota', '')}</td>
-                <td className="r num">{formatCurrency(item.dealValue)}</td>
-                <td className="r num crit" style={{ paddingRight: 16 }}>
+                <td className="muted fold" data-rc="show" data-l="Branch">
+                  {item.branchName.replace(' Toyota', '')}
+                </td>
+                <td className="r num" data-rc="key" data-l="Value">
+                  {formatCurrency(item.dealValue)}
+                </td>
+                <td className="r num crit" data-l="Age" style={{ paddingRight: 16 }}>
                   {item.ageDays} d
                 </td>
               </tr>
@@ -959,7 +963,7 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
         </div>
       ) : (
         <div className="scrollx">
-        <table className="tbl tbl-hover">
+        <table className="tbl tbl-hover tbl-rc">
           <thead>
             <tr>
               <th style={{ paddingLeft: 16 }}>Source</th>
@@ -975,14 +979,20 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
               const isWorst = comparable && worst !== null && row.source === worst.id;
               return (
                 <tr key={row.source} style={isWorst ? { background: 'var(--warning-wash)' } : undefined}>
-                  <td style={{ paddingLeft: 16, fontWeight: isWorst ? 600 : undefined }}>
+                  <td data-rc="id" style={{ paddingLeft: 16, fontWeight: isWorst ? 600 : undefined }}>
                     {SOURCE_LABELS[row.source]}
                   </td>
-                  <td className="r num">{row.leads}</td>
-                  <td className={isWorst ? 'r num warn' : 'r num'} style={isWorst ? { fontWeight: 600 } : undefined}>
+                  <td className="r num" data-l="Leads">
+                    {row.leads}
+                  </td>
+                  <td
+                    className={isWorst ? 'r num warn' : 'r num'}
+                    data-l="Leads → sale"
+                    style={isWorst ? { fontWeight: 600 } : undefined}
+                  >
                     <RateText rate={row.winRate} />
                   </td>
-                  <td className="r num" style={{ paddingRight: 16 }}>
+                  <td className="r num" data-l="Avg deal" style={{ paddingRight: 16 }}>
                     {row.averageDealValue === null ? '—' : formatCurrency(row.averageDealValue)}
                   </td>
                 </tr>

@@ -292,7 +292,7 @@ export function CycleTimePanel({
       }
     >
       <div className="scrollx">
-      <table className="tbl">
+      <table className="tbl tbl-rc">
         <thead>
           <tr>
             <th style={{ paddingLeft: 16 }}>Stage move</th>
@@ -309,13 +309,14 @@ export function CycleTimePanel({
               step.medianDays !== null && groupMedian !== null ? step.medianDays - groupMedian : null;
             return (
               <tr key={`${step.from}-${step.to}`}>
-                <td style={{ paddingLeft: 16 }}>
+                <td data-rc="id" style={{ paddingLeft: 16 }}>
                   {STAGE_LABEL[step.from]} → {STAGE_LABEL[step.to].toLowerCase()}
                 </td>
-                <td className="r num">{step.medianDays === null ? '—' : `${step.medianDays} d`}</td>
-                <td className="r num dim">{groupMedian === null ? '—' : `${groupMedian} d`}</td>
+                <td className="r num" data-l="Branch">{step.medianDays === null ? '—' : `${step.medianDays} d`}</td>
+                <td className="r num dim" data-l="Group">{groupMedian === null ? '—' : `${groupMedian} d`}</td>
                 <td
                   className={delta !== null && delta > 0 ? 'r num warn' : 'r num dim'}
+                  data-l="Difference"
                   style={{ paddingRight: 16 }}
                 >
                   {delta === null ? '—' : delta > 0 ? `+${delta}` : delta}
@@ -606,7 +607,7 @@ export function RepTable({
         branchName={branchName}
       />
       <div className="scrollx">
-        <table className="tbl tbl-hover tbl-fold">
+        <table className="tbl tbl-hover tbl-fold tbl-rc">
           <thead>
             <tr>
               {SORT_COLUMNS.map((column) => {
@@ -648,26 +649,29 @@ export function RepTable({
               const contacted = rep.contactedRate.value;
               return (
                 <tr key={rep.repId}>
-                  <td className="pin" style={{ paddingLeft: 16 }}>
+                  <td className="pin" data-rc="id" style={{ paddingLeft: 16 }}>
                     <Link href={hrefWithFilters(`/rep/${rep.repId}`, filters)} className="dp-name">
                       <strong>{rep.name}</strong>
                     </Link>
                   </td>
-                  <td className="r num">{rep.leadsHandled}</td>
-                  <td className={contacted !== null && contacted < 0.5 ? 'r num crit' : 'r num'}>
+                  <td className="r num" data-l="Leads">{rep.leadsHandled}</td>
+                  <td
+                    className={contacted !== null && contacted < 0.5 ? 'r num crit' : 'r num'}
+                    data-l="Contacted"
+                  >
                     <RateText rate={rep.contactedRate} />
                   </td>
-                  <td className="r num">
+                  <td className="r num" data-l="Leads → sale">
                     <RateText rate={rep.winRate} />
                   </td>
-                  <td className="r num fold">{formatCurrency(rep.deliveredRevenue)}</td>
-                  <td className={slow ? 'r num warn' : 'r num'}>
+                  <td className="r num fold" data-rc="show" data-l="Revenue">{formatCurrency(rep.deliveredRevenue)}</td>
+                  <td className={slow ? 'r num warn' : 'r num'} data-l="Median 1st contact">
                     {rep.medianHoursToFirstContact === null
                       ? '—'
                       : formatDurationHours(rep.medianHoursToFirstContact)}
                   </td>
-                  <td className="r num fold">{rep.openCount}</td>
-                  <td className="r num fold" style={{ paddingRight: 16 }}>
+                  <td className="r num fold" data-l="Open">{rep.openCount}</td>
+                  <td className="r num fold" data-l="Stalled" style={{ paddingRight: 16 }}>
                     {rep.stalledCount}
                   </td>
                 </tr>
@@ -675,14 +679,14 @@ export function RepTable({
             })}
             {idle.map((rep) => (
               <tr key={rep.repId} style={{ background: 'var(--surface-2)' }}>
-                <td className="pin muted" style={{ paddingLeft: 16, background: 'var(--surface-2)' }}>
+                <td className="pin muted" data-rc="id" style={{ paddingLeft: 16, background: 'var(--surface-2)' }}>
                   <Link href={hrefWithFilters(`/rep/${rep.repId}`, filters)} className="dp-name">
                     {rep.name}
                   </Link>{' '}
                   <span className="chip">{rep.role === 'branch_manager' ? 'manager' : 'no leads'}</span>
                 </td>
-                <td className="r num dim">0</td>
-                <td className="dim" colSpan={6} style={{ paddingLeft: 24, fontSize: 11.5 }}>
+                <td className="r num dim" data-l="Leads">0</td>
+                <td className="dim" data-rc="wide" colSpan={6} style={{ paddingLeft: 24, fontSize: 11.5 }}>
                   No leads assigned — nothing to score
                 </td>
               </tr>
