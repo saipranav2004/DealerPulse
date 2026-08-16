@@ -246,6 +246,7 @@ export function ModuleError({ title, detail }: { title: string; detail: string }
 export function Panel({
   title,
   subtitle,
+  hint,
   aside,
   footer,
   padded = true,
@@ -253,7 +254,16 @@ export function Panel({
   children,
 }: {
   title?: string;
+  /** A subtitle carries *data* — a count, a date range. It stays visible. */
   subtitle?: string;
+  /**
+   * A hint carries a *definition* — what the metric measures, what the tick
+   * means. It is read once and then never again, so it lives behind an ⓘ on
+   * the title rather than occupying a line under every panel forever. Eight
+   * definitional subtitles were a meaningful part of why the overview read as
+   * a wall of text.
+   */
+  hint?: string;
   aside?: React.ReactNode;
   footer?: React.ReactNode;
   padded?: boolean;
@@ -265,7 +275,21 @@ export function Panel({
       {title ? (
         <header className="panel-hd">
           <div>
-            <h2 className="t-h2">{title}</h2>
+            <h2 className="t-h2">
+              {title}
+              {hint ? (
+                <details className="hint">
+                  <summary className="hint-s" aria-label={`What “${title}” measures`}>
+                    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                      <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                      <path d="M8 7v4.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      <circle cx="8" cy="4.9" r=".9" fill="currentColor" />
+                    </svg>
+                  </summary>
+                  <p className="hint-b">{hint}</p>
+                </details>
+              ) : null}
+            </h2>
             {subtitle ? (
               <p className="t-micro" style={{ marginTop: 2 }}>
                 {subtitle}
@@ -278,5 +302,35 @@ export function Panel({
       {padded ? <div className="panel-bd">{children}</div> : children}
       {footer ? <footer className="panel-ft">{footer}</footer> : null}
     </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Progressive disclosure for methodology.
+ *
+ * Every figure in this product is prepared to show its working, and that
+ * willingness is the point — but a CEO opening the overview is asking "what is
+ * wrong and what does it cost", not "how was the denominator chosen". Reasoning
+ * that answers the second question resting in full view of the first is what
+ * pushed this screen to 928 words.
+ *
+ * Nothing is deleted. The conclusion stays visible, the working moves one
+ * keystroke away, and it is a native `<details>` — so it is in the DOM for a
+ * screen reader, it is found by in-page search, and it prints expanded.
+ */
+export function Explain({
+  label = 'Why',
+  children,
+}: {
+  label?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="explain">
+      <summary className="explain-s">{label}</summary>
+      <div className="explain-b">{children}</div>
+    </details>
   );
 }

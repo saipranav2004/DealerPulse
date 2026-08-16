@@ -33,7 +33,7 @@ import {
   type FilterState,
   type PeriodBasis,
 } from '@/lib/url-filters';
-import { Bar, DeltaPoints, Glyph, LowN, MicroBars, Panel, Rail, RateText, Sparkline, pct } from '@/components/ui';
+import { Bar, DeltaPoints, Explain, Glyph, LowN, MicroBars, Panel, Rail, RateText, Sparkline, pct } from '@/components/ui';
 
 /* -------------------------------------------------------------------------- */
 
@@ -428,7 +428,7 @@ export function BranchComparison({
   return (
     <Panel
       title="Branch comparison"
-      subtitle="Ranked by the share of leads that became a sale · grey tick is the group figure"
+      hint="Ranked by the share of leads that became a sale. The grey tick on each rail is the group figure."
       className="c8 ord-branches"
       padded={false}
       footer={
@@ -692,6 +692,7 @@ export function MomentumStrip({ momentum }: { momentum: MomentumResult }) {
       className="c12 ord-moved"
       footer={
         momentum.monthsOfPipeline !== null && momentum.paceDeliveries !== null ? (
+          <>
           <p className="t-micro">
             At the pace of the last <span className="num">{momentum.paceMonths}</span>{' '}
             {plural(momentum.paceMonths, 'month')} —{' '}
@@ -701,9 +702,16 @@ export function MomentumStrip({ momentum }: { momentum: MomentumResult }) {
               <span className="num">{momentum.monthsOfPipeline.toFixed(1)}</span>{' '}
               {momentum.monthsOfPipeline.toFixed(1) === '1.0' ? 'month' : 'months'}
             </strong>{' '}
-            of delivery work. A median is used, not an average: one exceptional month should not set the
-            expectation for every future one.
-          </p>
+            of delivery work.
+            </p>
+            {/* Outside the paragraph: `<details>` is flow content, and nesting
+                it in a `<p>` makes the browser close the paragraph early —
+                which React then reports as a hydration mismatch. */}
+            <Explain label="Why a median">
+              One exceptional month should not set the expectation for every future one, so the pace is the
+              middle month of the last {momentum.paceMonths} rather than their average.
+            </Explain>
+          </>
         ) : (
           /* Two months cannot produce a median worth the name. The months are
              printed instead, which is both honest and more informative. */
@@ -801,7 +809,7 @@ export function ForecastPanel({ forecast, filters }: { forecast: ForecastResult;
   return (
     <Panel
       title="What is still coming"
-      subtitle="Open pipeline weighted by how each stage has actually converted"
+      hint="Open pipeline weighted by how each stage has actually converted in this period."
       className="c6 ord-forecast"
       footer={
         <p className="t-micro">
@@ -857,10 +865,12 @@ export function ForecastPanel({ forecast, filters }: { forecast: ForecastResult;
                 {formatNumber(forecast.stalledCount)} of these are orders already paid for and never
                 delivered
               </strong>
-              , worth {formatCurrency(forecast.stalledValue)}. Treating them as likely to complete gives the
-              upper figure. Excluding them entirely gives the lower one. The truth is in between, and it
-              depends on whether anyone chases them.
+              , worth {formatCurrency(forecast.stalledValue)}.
             </p>
+            <Explain label="Why that makes it a range">
+              Treating them as likely to complete gives the upper figure. Excluding them entirely gives the
+              lower one. The truth is in between, and it depends on whether anyone chases them.
+            </Explain>
             {forecast.overdueCount > 0 ? (
               <p className="t-small" style={{ marginTop: 6 }}>
                 <span className="num">{formatNumber(forecast.overdueCount)}</span> open leads are already
@@ -900,10 +910,10 @@ export function RevenueTrend({
   return (
     <Panel
       title="Revenue delivered each month"
-      subtitle={
+      hint={
         basis === 'cohort'
-          ? 'Deliveries from leads created in this period — delivery months may fall outside it'
-          : 'Cars handed over, by the month they were handed over'
+          ? 'Deliveries from leads created in this period — delivery months may fall outside it.'
+          : 'Cars handed over, counted in the month they were handed over.'
       }
       className="c6 ord-die"
       aside={
@@ -958,7 +968,7 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
   return (
     <Panel
       title="Lead source"
-      subtitle="Share of leads that became a sale, against average deal value"
+      hint="Share of leads that became a sale, against average deal value."
       className="c6 ord-source"
       padded={false}
       footer={
@@ -1152,12 +1162,8 @@ export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult
               <>
                 The target totals <span className="num">{counted(targetUnits, 'unit')}</span>. Only{' '}
                 <span className="num">{formatNumber(totalLeads)}</span> {plural(totalLeads, 'lead')}{' '}
-                {plural(totalLeads, 'was', 'were')} created in the same period.
-                Even if every single lead became a sale the group could deliver {formatNumber(totalLeads)} — the
-                target is{' '}
-                <strong>{formatCompactNumber(targetUnits / Math.max(1, totalLeads), 1)}× total lead volume</strong> and
-                cannot be reached by conversion at any performance level. It is shown for continuity and is
-                excluded from every health signal on this screen.
+                {plural(totalLeads, 'was', 'were')} created in the same period — the target is{' '}
+                <strong>{formatCompactNumber(targetUnits / Math.max(1, totalLeads), 1)}× total lead volume</strong>.
               </>
             ) : (
               <>
@@ -1167,6 +1173,13 @@ export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult
               </>
             )}
           </p>
+          {ceilingUnreachable ? (
+            <Explain label="What that means for the number">
+              Even if every single lead became a sale the group could deliver {formatNumber(totalLeads)}, so
+              the target cannot be reached by conversion at any performance level. It is shown for continuity
+              and is excluded from every health signal on this screen.
+            </Explain>
+          ) : null}
         </div>
       </div>
     </section>

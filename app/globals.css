@@ -292,8 +292,12 @@ body {
 
 .topbar {
   display: flex; align-items: center; gap: var(--s4);
-  height: 38px; padding: 0 var(--s5);
+  /* `min-height`, not `height`, with wrapping allowed at every width. The bar
+     wrapped only below 1024, so once it carried a palette button as well its
+     contents ran 65px past the viewport at exactly 1024. */
+  min-height: 38px; padding: 3px var(--s5);
   background: var(--surface); border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap; row-gap: 4px;
 }
 .mark {
   font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .16em;
@@ -1388,6 +1392,57 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
 }
 
 /* ==========================================================================
+   Definition hint
+
+   The ⓘ beside a panel title. A metric's definition is read once; a subtitle
+   repeats it on every visit forever, and eight of them were a real part of why
+   the overview read as prose rather than as a dashboard.
+   ========================================================================== */
+.hint { display: inline-block; position: relative; vertical-align: middle; margin-left: 5px; }
+.hint-s {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; margin: -6px 0;
+  color: var(--ink-3); cursor: pointer; list-style: none;
+}
+.hint-s::-webkit-details-marker { display: none; }
+.hint-s:hover { color: var(--accent); }
+.hint-b {
+  position: absolute; left: 0; top: calc(100% + 4px); z-index: 20;
+  width: max-content; max-width: min(320px, calc(100vw - var(--s7)));
+  margin: 0; padding: var(--s3);
+  background: var(--surface); border: 1px solid var(--rule-strong); border-radius: var(--r-md);
+  box-shadow: 0 6px 16px rgba(0,0,0,.10);
+  font: 400 11.5px/1.5 var(--sans); color: var(--ink-2); white-space: normal;
+}
+
+/* ==========================================================================
+   Methodology disclosure
+
+   Quiet at rest — a dotted-underline phrase, not a button — because it is an
+   offer to explain, not a call to act. Native `<details>`, so the text is in
+   the DOM for a screen reader, findable by in-page search, and expanded on
+   paper by the print rules.
+   ========================================================================== */
+.explain { margin-top: 6px; }
+.explain-s {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 24px;
+  font-size: 11px; color: var(--ink-3); cursor: pointer;
+  list-style: none; width: fit-content;
+}
+.explain-s::-webkit-details-marker { display: none; }
+.explain-s::after {
+  content: "›"; display: inline-block; font-size: 12px;
+  transition: transform var(--dur-micro) var(--ease-out);
+}
+.explain[open] > .explain-s::after { transform: rotate(90deg); }
+.explain-s > span, .explain-s { text-decoration: underline dotted; text-underline-offset: 3px; }
+.explain-s:hover { color: var(--ink-2); }
+.explain-b {
+  margin-top: 4px; padding-left: var(--s3);
+  border-left: 2px solid var(--rule);
+  font-size: 11.5px; color: var(--ink-2); line-height: 1.5; max-width: 70ch;
+}
+
+/* ==========================================================================
    Command palette
    ========================================================================== */
 .cmdk-open {
@@ -1446,6 +1501,14 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
 /* Stated here rather than in the touch breakpoint above: these rules share a
    specificity with the base rule, so they have to come after it to win. */
 @media (max-width: 1023px) { .cmdk-open { height: 44px; min-height: 44px; } }
+/* The disclosure controls added by the density pass are 24px targets, which
+   is the pointer floor but not the fingertip one. */
+@media (max-width: 1023px) {
+  .hint-s { width: 44px; height: 44px; margin: -10px 0; }
+  .explain-s { min-height: 44px; }
+  /* A short column label ("Rep") gave a 36px-wide sort target. */
+  .sortbtn { min-width: 44px; }
+}
 @media (max-width: 767px) { .cmdk-open { display: none; } }
 
 /* ==========================================================================
@@ -1505,6 +1568,11 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
   .scrollx, .tbl-fold, .tbl-fold-sm { overflow: visible !important; min-width: 0 !important; }
   /* A hover-only figure would print as an empty box. */
   .fnl-tip, .tr-tip, .tr-cross { display: none !important; }
+  /* Paper has no disclosure. The working prints with the conclusion. */
+  .explain-b { display: block !important; }
+  .explain-s, .hint-s { display: none !important; }
+  .hint { display: block; }
+  .hint-b { position: static; border: 0; box-shadow: none; padding: 2px 0; max-width: none; }
   /* Where a link goes matters once it cannot be clicked — but only for links
      in prose. Annotating every row link turned each table into two columns of
      URLs, which is noise, not provenance. */
