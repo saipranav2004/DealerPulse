@@ -230,6 +230,10 @@ export function ScatterPlot({
   const plotW = width - padL - padR;
   const plotH = height - padT - padB;
 
+  /** One tooltip string, so the hit area, the mark and the label agree. */
+  const tip = (p: { label: string; x: number; y: number }) =>
+    `${p.label}: ${counted(p.x, 'lead')}, ${formatCurrency(p.y)} average price`;
+
   const maxX = Math.max(...points.map((p) => p.x)) * 1.15;
   const maxY = Math.max(...points.map((p) => p.y)) * 1.15;
   const sx = (v: number) => padL + (v / maxX) * plotW;
@@ -286,16 +290,26 @@ export function ScatterPlot({
         ))}
 
         {points.map((p) => (
-          <g key={p.key}>
+          <g key={p.key} className="chart-mark" tabIndex={0} role="img" aria-label={tip(p)}>
+            {/*
+              A 24px transparent target regardless of the visual radius. The
+              dot is 5.5px, which is a fine mark and an unusable button — the
+              hit area is sized for a fingertip, not for the ink.
+            */}
+            <circle className="chart-hit" cx={sx(p.x)} cy={sy(p.y)} r={12}>
+              <title>{tip(p)}</title>
+            </circle>
             <circle
+              className="chart-dot"
               cx={sx(p.x)}
               cy={sy(p.y)}
               r={p.focus ? 7 : 5.5}
               fill={p.focus ? 'var(--c-focus)' : 'var(--c-context)'}
               stroke="var(--surface)"
               strokeWidth="2"
+              pointerEvents="none"
             >
-              <title>{`${p.label}: ${counted(p.x, 'lead')}, ${formatCurrency(p.y)} average`}</title>
+              <title>{tip(p)}</title>
             </circle>
             <text
               x={sx(p.x)}

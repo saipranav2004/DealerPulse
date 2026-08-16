@@ -696,11 +696,20 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
    legible rather than estimated. */
 .fnl-stage:hover .fnl-ghost { outline: 1px solid var(--rule-strong); outline-offset: 0; }
 
-/* Chart marks. A dot must be easy to hit before it is pretty. */
-.chart-dot { transition: transform var(--dur-micro) var(--ease-out), opacity var(--dur-micro) var(--ease-out); transform-box: fill-box; transform-origin: center; }
-figure:hover .chart-dot { opacity: .35; }
-figure .chart-dot:hover, figure .chart-dot:focus-visible { opacity: 1; transform: scale(1.35); }
+/* Chart marks. A dot must be easy to hit before it is pretty: the visible dot
+   is 5.5px and the target over it is 24px. */
+.chart-dot {
+  transition: transform var(--dur-micro) var(--ease-out), opacity var(--dur-micro) var(--ease-out);
+  transform-box: fill-box; transform-origin: center;
+}
 .chart-hit { fill: transparent; cursor: pointer; }
+.chart-mark { outline: none; }
+/* Hovering any mark drops the rest back, so the one being read is the one
+   that is legible. */
+svg:hover .chart-mark:not(:hover) .chart-dot,
+svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity: .35; }
+.chart-mark:hover .chart-dot, .chart-mark:focus-visible .chart-dot { transform: scale(1.35); }
+.chart-mark:focus-visible .chart-dot { stroke: var(--accent); stroke-width: 3; }
 
 /* KPI cards become the doorway to the rows behind them. */
 .vital-link {
