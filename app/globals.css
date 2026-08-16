@@ -283,6 +283,8 @@ body {
 }
 .nav-link.on .nav-badge { background: var(--critical); }
 
+.tabbar { display: none; }
+
 .theme-btn {
   display: inline-grid; place-items: center; width: 26px; height: 26px;
   border: 1px solid transparent; border-radius: var(--r-sm);
@@ -342,6 +344,42 @@ body {
 .menu-sep { height: 1px; background: var(--rule); margin: 4px 0; }
 .menu-hd { padding: 6px 8px 4px; }
 
+/* --- Filter bar: chips on pointer devices, a sheet on phones ------------- */
+.fb-chips { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.fb-sheet { display: none; }
+.fb-count {
+  display: inline-grid; place-items: center; min-width: 17px; height: 16px; padding: 0 4px;
+  border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-size: 10px; font-weight: 600;
+}
+.fb-panel { display: none; }
+
+@media (max-width: 767px) {
+  .fb-chips { display: none; }
+  .fb-sheet { display: block; }
+  /* When open, the trigger becomes the sheet's header bar so there is always a
+     way back out; every option link navigates, which closes it anyway. */
+  .fb-sheet[open] > summary {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 71;
+    height: 52px; border-radius: 0; border: 0; border-bottom: 1px solid var(--rule);
+    background: var(--surface); justify-content: center;
+  }
+  .fb-sheet[open] > summary::after { content: "· Done"; color: var(--accent); font-weight: 600; }
+  .fb-sheet[open] .fb-panel {
+    display: block; position: fixed; inset: 52px 0 0; z-index: 70;
+    background: var(--surface); overflow-y: auto; overscroll-behavior: contain;
+  }
+  .fb-panel-in { padding: var(--s4) var(--s4) var(--s9); }
+  .fb-group { padding-bottom: var(--s4); margin-bottom: var(--s4); border-bottom: 1px solid var(--rule); }
+  .fb-group:last-of-type { border-bottom: 0; }
+  .fb-opts { display: grid; gap: 2px; margin-top: var(--s2); }
+  .fb-opts .menu-item { min-height: 44px; font-size: 14px; }
+  .fb-actions {
+    position: sticky; bottom: 0; display: flex; align-items: center; gap: var(--s3);
+    padding: var(--s3) 0; background: var(--surface); border-top: 1px solid var(--rule);
+  }
+  .fb-clear, .fb-count-label { display: none; }
+}
+
 .subset-bar {
   display: flex; align-items: center; gap: var(--s2);
   padding: 7px var(--s5); background: var(--accent-wash);
@@ -393,13 +431,19 @@ body {
 
 /* --- Grid ---------------------------------------------------------------- */
 .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--s4); padding: var(--s5); align-items: start; }
+/* Without this a long unbroken label inside a panel sets the track's min-content
+   width and pushes the whole column past the viewport. */
+.grid > *, .stack > * { min-width: 0; }
 .c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c5 { grid-column: span 5; }
 .c6 { grid-column: span 6; } .c7 { grid-column: span 7; } .c8 { grid-column: span 8; }
 .c9 { grid-column: span 9; } .c12 { grid-column: span 12; }
-.stack { display: grid; gap: var(--s4); }
+.stack { display: grid; gap: var(--s4); min-width: 0; }
 
 /* --- Dot plot ------------------------------------------------------------ */
 .dp { display: grid; grid-template-columns: 132px 1fr 1fr; }
+/* Rows participate in the parent grid at table widths. */
+.dp-row { display: contents; }
+.dp-lab { display: none; }
 .dp-h { padding: 0 var(--s3) 6px; border-bottom: 1px solid var(--rule); }
 .dp-cell { padding: 9px var(--s3); border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: var(--s3); min-width: 0; }
 .dp-name { font-size: 12.5px; color: var(--ink-2); text-decoration: none; }
@@ -604,6 +648,42 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 .pager { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 .pager .gap { flex: 1; }
 
+/* Entity header: identity, then its headline stats. */
+.ent-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--s6); align-items: center; }
+.ent-stats { display: flex; gap: var(--s6); flex-wrap: wrap; }
+@media (max-width: 767px) { .ent-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); } }
+@media (max-width: 767px) {
+  .ent-head { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); align-items: start; }
+  .ent-head > :first-child { grid-column: 1 / -1; }
+  .ent-head > span[aria-hidden="true"] { display: none; }
+}
+
+/* Queue summary strip. Hairline dividers on wide screens, a plain grid below. */
+.qstats {
+  display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap;
+  padding: var(--s4) var(--s5);
+  background: var(--surface); border-bottom: 1px solid var(--rule);
+}
+@media (max-width: 767px) {
+  .qstats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4) var(--s3); }
+  /* The vertical hairlines are separators for a row; in a grid they are debris. */
+  .qstats > span[aria-hidden="true"] { display: none; }
+  .qstats > .sp { display: none; }
+  .qstats > .queue-branches { grid-column: 1 / -1; }
+}
+
+/* The verdict's two amounts, side by side so they cannot be read as one. */
+.impact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); margin-top: var(--s4); max-width: 620px; }
+.impact-cell { padding: var(--s3); border: 1px solid var(--rule); border-radius: var(--r-md); background: var(--surface); }
+.impact-cell.is-focus { border-color: var(--accent); background: var(--accent-wash); }
+.impact-val { font-family: var(--mono); font-size: 19px; text-wrap: nowrap; line-height: 1.15; font-weight: 600; letter-spacing: -.02em; margin: 4px 0 6px; }
+.impact-cell.is-focus .impact-val { color: var(--accent); }
+@media (max-width: 519px) { .impact { grid-template-columns: minmax(0, 1fr); } }
+
+/* Two columns that become one before either can get too narrow to read. */
+.split { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: var(--s7); align-items: center; }
+@media (max-width: 1023px) { .split { grid-template-columns: minmax(0, 1fr); gap: var(--s4); align-items: start; } }
+
 .stat-strip { display: flex; gap: var(--s6); flex-wrap: wrap; align-items: flex-start; }
 .stat-strip > div { min-width: 0; }
 
@@ -615,10 +695,16 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 @media (max-width: 519px) { .mv-grid { grid-template-columns: minmax(0, 1fr); } }
 
 .tbl-fold { min-width: 900px; }
-.tbl-fold-sm { min-width: 640px; }
-@media (max-width: 719px) {
+/* No min-width: this variant is used inside narrow panels, where a floor of
+   560px pushed the last column out of view behind a scroll nobody sees. It
+   fits by folding a column instead. */
+.tbl-fold-sm { min-width: 0; }
+@media (max-width: 767px) {
   .tbl-fold-sm { min-width: 0; }
   .tbl-fold-sm .fold { display: none; }
+  .tbl-fold-sm .unfold { display: block; margin-top: 2px; }
+  /* A money figure that wraps mid-amount reads as two numbers. */
+  .tbl td.num, .tbl th.num, .tbl .r { white-space: nowrap; }
 }
 /* `.fold` cells drop out below 900px; `.unfold` is their replacement line,
    stacked under the customer name. Exactly one of the pair is ever visible. */
@@ -704,38 +790,61 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
   .queue-branches { text-align: left !important; }
 }
 
-/* Phone. Not a designed breakpoint — the brief is desktop-first — but the page
-   must not scroll sideways, because a horizontally scrolling dashboard reads
-   as broken. Everything that was a single non-wrapping row wraps here. */
+/* ==========================================================================
+   Phone (< 768px)
+
+   A different layout, not a squeezed one. Navigation moves to a thumb-reachable
+   tab bar, filters move into a sheet, every grid collapses to one column, and
+   anything that was a wide table becomes a list of records.
+   ========================================================================== */
 @media (max-width: 767px) {
   .topbar {
-    height: auto; min-height: 38px; flex-wrap: wrap;
-    padding: 6px var(--s4); gap: var(--s2); row-gap: 4px;
+    height: auto; min-height: 44px; flex-wrap: wrap;
+    padding: 6px var(--s4); gap: var(--s2); row-gap: 2px;
   }
-  /* The nav takes the whole second line so no tap target is squeezed. */
-  .nav { order: 3; width: 100%; gap: 4px; }
-  .nav-link { height: 32px; flex: 1; justify-content: center; padding: 0 6px; }
+  .topbar .nav { display: none; }
   .topbar .sp { display: none; }
   .marker { margin-left: auto; }
+
+  /* The tab bar is fixed to the bottom, so every screen reserves room for it. */
+  .app { padding-bottom: 64px; }
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    background: var(--surface); border-top: 1px solid var(--rule);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .tabbar-link {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; min-height: 56px; padding: 6px 2px;
+    color: var(--ink-3); text-decoration: none; font-size: 11px; font-weight: 500;
+  }
+  .tabbar-link.on { color: var(--accent); }
+  .tabbar-link.on::before {
+    content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 2px; background: var(--accent);
+  }
+  .tabbar-ico { width: 20px; height: 20px; }
+  .tabbar-ico svg { width: 20px; height: 20px; display: block; }
+  .tabbar-link .nav-badge { position: absolute; top: 4px; left: 54%; }
+
   .filterbar, .subset-bar { flex-wrap: wrap; height: auto; padding-top: var(--s2); padding-bottom: var(--s2); }
-  /* An absolutely positioned popover still counts toward page width. */
   .menu-pop { max-width: calc(100vw - var(--s7)); min-width: 0 !important; }
-  .verdict-in, .grid { gap: var(--s4); }
+
+  /* One column, everywhere. */
+  .grid { grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
+  .grid > * { grid-column: 1 / -1 !important; }
+  .verdict-in { gap: var(--s4); }
   .vitals { grid-template-columns: 1fr; }
-  .vital:nth-child(n) { border-right: 0; }
-  .q-row { grid-template-columns: 26px 22px minmax(0,1fr); }
-  .q-money { grid-column: 3; grid-row: 2; text-align: left; }
-  .q-owner { grid-row: 3; }
-  .q-age   { grid-row: 4; }
-  .q-act   { grid-column: 3; grid-row: 5; justify-content: flex-start; }
-  .seg { flex-wrap: wrap; }
-  .tabs { overflow-x: auto; }
+  .vital { border-right: 0; }
+  .mv-grid { grid-template-columns: minmax(0, 1fr); }
+
   /* Before/after stacks; the arrow between them has nowhere to point sideways. */
   .ba { grid-template-columns: minmax(0,1fr); }
   .ba > :nth-child(2) { display: none; }
   .ba-cell { min-width: 0; }
-  /* Long explanatory counts wrap rather than widening the bar. */
+
   .subset-bar, .subset-bar * { white-space: normal; overflow-wrap: anywhere; }
+  .panel-hd { flex-wrap: wrap; }
   /* The floating tick label on the targets bar cannot stay centred on its mark
      without running off a 360px screen. The sentence below the bar states the
      same figure, so the label goes rather than the meaning. */
@@ -745,7 +854,93 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
   .scrollx { scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; }
   .scrollx::-webkit-scrollbar { height: 6px; }
   .scrollx::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 3px; }
-  .panel-hd { flex-wrap: wrap; }
+  .seg { flex-wrap: wrap; }
+  .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: thin; }
+  .tab { white-space: nowrap; }
+
+  /*
+    Queue rows become a single stacked record. Reserving a column for the
+    action button left the text three or four words wide; here the button is
+    full width at the foot of the row, which is also where a thumb is.
+  */
+  .q-row {
+    grid-template-columns: 4px minmax(0, 1fr) auto;
+    column-gap: var(--s3); row-gap: 6px;
+    padding: var(--s3) var(--s4);
+  }
+  .q-sev   { grid-column: 1; grid-row: 1 / span 5; height: 100%; }
+  .q-row > .chk { grid-column: 2; grid-row: 1; justify-self: start; }
+  .q-what  { grid-column: 2 / -1; grid-row: 2; }
+  .q-money { grid-column: 3; grid-row: 1; text-align: right; white-space: nowrap; }
+  .q-owner { grid-column: 2 / -1; grid-row: 3; }
+  .q-age   { grid-column: 2 / -1; grid-row: 4; text-align: left; }
+  .q-act   { grid-column: 2 / -1; grid-row: 5; }
+  .q-act .btn { width: 100%; }
+  .q-title { font-size: 14px; }
+  .bulkbar { flex-wrap: wrap; }
+
+  /*
+    Reading order on a phone is DOM order, and the panel a CEO needs first —
+    money already paid for and not delivered — sat fifth. The grid is one
+    column here, so an explicit order costs nothing and puts the urgent and
+    the recent above the analytical.
+  */
+  .ord-risk     { order: 1; }
+  .ord-moved    { order: 2; }
+  .ord-branches { order: 3; }
+  .ord-forecast { order: 4; }
+  .ord-trend    { order: 5; }
+  .ord-die      { order: 6; }
+  .ord-source   { order: 7; }
+  .ord-targets  { order: 8; }
+
+  /*
+    The lead list stops being a table. Five columns cannot fit 390px: names
+    wrapped to three lines and the currency unit was clipped off the right
+    edge. Each lead becomes a record instead — name and amount on one line,
+    the identifying detail under it, vehicle and stage beneath that.
+  */
+  /* A column that folds only on a phone, where the table above still fits at
+     tablet width. */
+  .fold-sm { display: none; }
+
+  /* Scaled to a phone's width the scatter's labels rendered at about 6px.
+     It keeps its real size and scrolls, like a wide table. */
+  .chart-wide { min-width: 460px; }
+
+  .tbl-cards thead { display: none; }
+  .tbl-cards tbody tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--s3); row-gap: 4px;
+    padding: var(--s3) var(--s4); border-bottom: 1px solid var(--rule);
+  }
+  .tbl-cards tbody td { display: block; padding: 0; border: 0; }
+  .tbl-cards .cell-name  { grid-column: 1; grid-row: 1; padding-left: 0 !important; }
+  .tbl-cards .cell-value { grid-column: 2; grid-row: 1; text-align: right; font-weight: 500; white-space: nowrap; }
+  .tbl-cards .cell-model { grid-column: 1; grid-row: 2; }
+  .tbl-cards .cell-stage { grid-column: 2; grid-row: 2; text-align: right; }
+  /* The customer name already opens the same drawer, so a full-width button
+     on every row was 25 redundant controls and doubled the list's height. The
+     chevron carries the affordance instead. */
+  .tbl-cards .cell-act { display: none; }
+  .tbl-cards .dp-name { font-size: 14px; font-weight: 600; }
+  .tbl-cards .dp-name::after { content: " ›"; color: var(--ink-3); font-weight: 400; }
+
+  /* Branch comparison: one card per branch. Two rails in ~90px each was the
+     reason "58.2%" rendered as "58". */
+  .dp { grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
+  .dp-h { display: none; }
+  .dp-row { display: block; border: 1px solid var(--rule); border-radius: var(--r-md); overflow: hidden; }
+  .dp-row.is-focus { border-color: var(--accent); }
+  .dp-lab { display: block; width: 82px; flex: none; }
+  .dp-cell { padding: var(--s2) var(--s3); }
+  .dp-cell:last-child { border-bottom: 0; }
+  .dp-cell:first-child { background: var(--surface-2); }
+  .dp-row.is-focus .dp-cell:first-child { background: var(--accent-wash); }
+  .dp-row.is-focus .dp-cell { background: transparent; }
+  .dp-row.is-focus .dp-cell:first-child { background: var(--accent-wash); }
+  .dp-val { width: 52px; }
+  .dp-delta { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

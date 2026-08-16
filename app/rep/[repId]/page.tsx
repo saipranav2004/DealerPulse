@@ -148,8 +148,8 @@ export default async function RepPage({
       <main id="main">
         <Suspense fallback={<RepSkeleton />}>
         <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--rule)', padding: 'var(--s5)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--s5)', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 220 }}>
+          <div className="ent-head">
+            <div>
               <h1 className="t-h1">{rep.name}</h1>
               <p className="t-small" style={{ marginTop: 4 }}>
                 {rep.role === 'branch_manager' ? 'Branch manager' : 'Sales officer'} · {branchName},{' '}
@@ -157,7 +157,7 @@ export default async function RepPage({
               </p>
             </div>
             {!rep.hasNoLeads ? (
-              <div style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap' }}>
+              <div className="ent-stats">
                 <div>
                   <p className="t-label">Leads → sale</p>
                   <span className="t-metric-s">

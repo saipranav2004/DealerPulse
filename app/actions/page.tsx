@@ -172,17 +172,7 @@ export default async function ActionCenterPage({
 
         {queue === 'stalled' ? (
           <>
-            <div
-              style={{
-                padding: 'var(--s4) var(--s5)',
-                background: 'var(--surface)',
-                borderBottom: '1px solid var(--rule)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--s4)',
-                flexWrap: 'wrap',
-              }}
-            >
+            <div className="qstats">
               <div>
                 <p className="t-label" style={{ marginBottom: 3 }}>
                   Booked, undelivered

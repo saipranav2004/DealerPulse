@@ -42,6 +42,27 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               "try{var m=localStorage.getItem('dealerpulse.theme');if(m==='light'||m==='dark'){document.documentElement.setAttribute('data-theme',m)}}catch(e){}",
           }}
         />
+        {/*
+          Closes any other open menu when one is opened, and closes the open
+          menu on Escape or on a click outside it.
+
+          `<details name>` already does the first of these in current browsers;
+          this covers the rest and the browsers that do not. It is a listener on
+          the document rather than a component, so the filter system stays
+          server-rendered and keeps working with JavaScript disabled — the only
+          thing lost without it is that two menus can be open at once.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){function all(){return document.querySelectorAll('[data-filter-menu][open]')}" +
+              "document.addEventListener('toggle',function(e){var t=e.target;" +
+              "if(!(t instanceof HTMLDetailsElement)||!t.open||!t.hasAttribute('data-filter-menu'))return;" +
+              "all().forEach(function(d){if(d!==t)d.open=false})},true);" +
+              "document.addEventListener('keydown',function(e){if(e.key==='Escape')all().forEach(function(d){d.open=false})});" +
+              "document.addEventListener('click',function(e){all().forEach(function(d){if(!d.contains(e.target))d.open=false})});})()",
+          }}
+        />
       </head>
       <body>
         <a href="#main" className="sr-only">

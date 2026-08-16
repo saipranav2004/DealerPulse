@@ -55,15 +55,10 @@ export function BranchHeader({
 
   return (
     <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--rule)', padding: 'var(--s5)' }}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0,1fr) auto auto',
-          gap: 'var(--s6)',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
+      {/* `auto auto` for the two stat columns squeezed the identity block to a
+          one-word-per-line ribbon on a phone. `.ent-head` gives the stats their
+          own row below 768 instead. */}
+      <div className="ent-head">
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--s3)', flexWrap: 'wrap' }}>
             <h1 className="t-h1">{branch.name}</h1>

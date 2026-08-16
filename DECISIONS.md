@@ -248,13 +248,26 @@ median cycle, a December lead cannot have delivered yet. Cohort series carry an
   before shipping. All 47 rows are already-delivered cars, so no row has a live
   next step. It is analysis wearing a queue's clothing. It stays for now because
   the delay causes are genuinely useful to the supply side.
-- **Phone is supported, not designed.** The brief is desktop-first with tablet
-  secondary, and that is where the layouts are composed. Below 960px wide tables
-  fold their least load-bearing columns away rather than hiding them behind a
-  horizontal scroll nobody discovers; below 768px the navigation takes its own
-  row and every panel stacks. No screen from 360px up scrolls sideways. But a
-  phone-native information design — one card at a time, thumb-reachable actions —
-  is a different product and is not what this is.
+- **Three layouts, not one layout squeezed.** Desktop (≥1280) is the dense
+  twelve-column grid the brief asks for. Tablet (768–1279) drops to two columns
+  and folds each wide table's least load-bearing columns rather than hiding them
+  behind a horizontal scroll nobody discovers. Phone (<768) is a different
+  interface: navigation moves to a bottom tab bar, the four filter dropdowns
+  become one button opening a full-screen sheet, wide tables become records, and
+  the panel order changes so money at risk is first rather than fifth.
+
+  The phone version was not a squeeze that needed tuning — it was broken. Three
+  native `<details>` popovers could be open at once, stacked over each other and
+  over the page; the targets panel's fixed 280px + 1fr grid rendered its prose
+  one word per line; the lead table clipped the currency unit off its own
+  amounts. All three are fixed at the structure level, not with a media query
+  patch.
+
+- **Queues paginate at 25.** This dataset's longest queue is 47 rows, so nothing
+  here needs it. A real dealer group's stalled-order list is thousands, and a
+  queue that renders all of them stops being usable long before it stops
+  rendering. Selection and select-all deliberately operate on the visible page,
+  so a bulk action can never touch a row the reader has not seen.
 
 ## Verification
 
@@ -265,9 +278,12 @@ pass renders every route under `next start` and asserts 50 rendered figures and
 states — including the 404s, the empty-by-filter state, the n=1 case where every
 rate must be withheld, and the filter-conflict case that used to render an empty
 screen. Layout is measured, not eyeballed: all nine routes are checked for
-horizontal overflow at fifteen viewport widths from 360px to 1920px. `NOW` is
-pinned to 2025-12-31T19:10:00Z, so nothing in the product depends on when it is
-run.
+horizontal overflow at fifteen viewport widths from 360px to 1920px, and fifteen
+interaction checks drive the real browser — opening a second filter menu closes
+the first, Escape and outside-clicks close it, the phone sheet fits its viewport
+and lists every group, the tab bar navigates, and queue pagination keeps
+select-all inside the visible page. `NOW` is pinned to 2025-12-31T19:10:00Z, so
+nothing in the product depends on when it is run.
 
 Two defects that survived my own review and were caught by an external audit are
 worth naming, because both were failures of the same kind — the code was right

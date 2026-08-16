@@ -80,25 +80,35 @@ export function VerdictBand({
               leads are never called.
             </b>
           </h1>
-          {/* Two numbers, never merged. Closing the whole funnel gap is worth
-              roughly ten times what the phone calls alone are worth, and
-              quoting the large number beside the phone-call sentence — which
-              this product did until it was audited — overstates the lever by
-              an order of magnitude. */}
-          <p className="verdict-sub">
-            Closing {verdict.branchName.replace(' Toyota', '')}&rsquo;s gap to the other branches{' '}
-            <em>across the whole funnel</em> is worth{' '}
-            <span className="fig">{formatCurrency(verdict.recoverableValueLow)}</span> to{' '}
-            <span className="fig">{formatCurrency(verdict.recoverableValueHigh)}</span> over this period —
-            and first contact is where most of those leads are lost. The branch is not losing deals it
-            fought for; it is not entering them.
-          </p>
-          <p className="verdict-sub" style={{ marginTop: 'var(--s2)' }}>
-            Fixing first contact <em>alone</em>, holding the branch&rsquo;s own conversion after the call,
-            is worth about <span className="fig">{formatCurrency(verdict.firstContactValueLow)}</span> to{' '}
-            <span className="fig">{formatCurrency(verdict.firstContactValueHigh)}</span>. It is the first
-            step, not the whole prize.
-          </p>
+          {/* Two numbers, never merged — and shown as two cells rather than two
+              paragraphs. Quoting the whole-funnel figure inside the sentence
+              about phone calls overstated the lever tenfold; as a pair of
+              labelled amounts the distinction is structural, and a reader who
+              skips the prose entirely still cannot conflate them. */}
+          <div className="impact">
+            <div className="impact-cell">
+              <p className="t-label">Fix first contact</p>
+              {/* Both ends carry their own symbol: stripping it from the second
+                  meant reformatting currency here, and currency has exactly one
+                  formatter in this codebase. */}
+              <p className="impact-val num">
+                {formatCurrency(verdict.firstContactValueLow)} – {formatCurrency(verdict.firstContactValueHigh)}
+              </p>
+              <p className="t-micro">
+                Calling the {formatPercentValue(verdict.neverContactedShare, 0)} nobody calls, at the branch&rsquo;s
+                own conversion after the call.
+              </p>
+            </div>
+            <div className="impact-cell is-focus">
+              <p className="t-label">Fix the whole funnel</p>
+              <p className="impact-val num">
+                {formatCurrency(verdict.recoverableValueLow)} – {formatCurrency(verdict.recoverableValueHigh)}
+              </p>
+              <p className="t-micro">
+                Matching the other branches at every step. First contact is where most of those leads go.
+              </p>
+            </div>
+          </div>
           <div className="verdict-acts">
             <Link
               href={hrefWithFilters(`/branch/${verdict.branchId}`, filters)}
@@ -329,7 +339,7 @@ export function BranchComparison({
     <Panel
       title="Branch comparison"
       subtitle="Ranked by the share of leads that became a sale · grey tick is the group figure"
-      className="c8"
+      className="c8 ord-branches"
       padded={false}
       footer={
         <p className="t-micro">
@@ -353,13 +363,16 @@ export function BranchComparison({
             const contact = branch.firstContactRate.value;
             const win = branch.winRate.value;
             return (
-              <div key={branch.branchId} className={focus ? 'dp-row is-focus' : 'dp-row'} style={{ display: 'contents' }}>
+              <div key={branch.branchId} className={focus ? 'dp-row is-focus' : 'dp-row'}>
                 <div className="dp-cell">
                   <Link href={hrefWithFilters(`/branch/${branch.branchId}`, filters)} className="dp-name">
                     {branch.name.replace(' Toyota', '')} <span className="dim">{branch.city}</span>
                   </Link>
                 </div>
                 <div className="dp-cell">
+                  {/* Column headings become per-row labels once the table
+                      collapses to one card per branch. */}
+                  <span className="dp-lab t-label">Contacted</span>
                   {contact === null ? (
                     <LowN n={branch.firstContactRate.n} />
                   ) : (
@@ -387,6 +400,7 @@ export function BranchComparison({
                   )}
                 </div>
                 <div className="dp-cell">
+                  <span className="dp-lab t-label">Became a sale</span>
                   {win === null ? (
                     <LowN n={branch.winRate.n} />
                   ) : (
@@ -427,7 +441,7 @@ export function MoneyAtRisk({ stalled, filters }: { stalled: QueueSummary; filte
     <Panel
       title="Money at risk"
       subtitle="Paid orders with no delivery record"
-      className="c4"
+      className="c4 ord-risk"
       padded={false}
       aside={<span className="chip chip-crit num">{formatCurrency(stalled.value)}</span>}
       footer={
@@ -452,11 +466,12 @@ export function MoneyAtRisk({ stalled, filters }: { stalled: QueueSummary; filte
         </div>
       ) : (
         <div className="scrollx">
-        <table className="tbl tbl-hover">
+        {/* Four columns do not fit a phone. Branch folds under the name. */}
+        <table className="tbl tbl-hover tbl-fold-sm">
           <thead>
             <tr>
               <th style={{ paddingLeft: 16 }}>Customer</th>
-              <th>Branch</th>
+              <th className="fold">Branch</th>
               <th className="r">Value</th>
               <th className="r" style={{ paddingRight: 16 }}>
                 Age
@@ -470,8 +485,9 @@ export function MoneyAtRisk({ stalled, filters }: { stalled: QueueSummary; filte
                   <Link href={hrefWithFilters('/', filters, { lead: item.leadId })} className="dp-name">
                     {item.customerName}
                   </Link>
+                  <div className="t-micro unfold">{item.branchName.replace(' Toyota', '')}</div>
                 </td>
-                <td className="muted">{item.branchName.replace(' Toyota', '')}</td>
+                <td className="muted fold">{item.branchName.replace(' Toyota', '')}</td>
                 <td className="r num">{formatCurrency(item.dealValue)}</td>
                 <td className="r num crit" style={{ paddingRight: 16 }}>
                   {item.ageDays} d
@@ -504,7 +520,7 @@ export function WhereDealsDie({ loss }: { loss: LossAnalysisResult }) {
     <Panel
       title="Where deals die"
       subtitle={`${formatNumber(loss.lostCount)} lost leads · stage occupied before the loss`}
-      className="c6"
+      className="c6 ord-trend"
       footer={
         loss.preTestDriveShare.value !== null ? (
           <p className="t-micro">
@@ -571,7 +587,7 @@ export function MomentumStrip({ momentum }: { momentum: MomentumResult }) {
     <Panel
       title="What changed last month"
       subtitle={`${formatMonthKey(momentum.currentMonth)} against ${formatMonthKey(momentum.previousMonth)}`}
-      className="c12"
+      className="c12 ord-moved"
       footer={
         momentum.monthsOfPipeline !== null && momentum.paceDeliveries !== null ? (
           <p className="t-micro">
@@ -631,7 +647,7 @@ export function MomentumStrip({ momentum }: { momentum: MomentumResult }) {
 export function ForecastPanel({ forecast, filters }: { forecast: ForecastResult; filters: FilterState }) {
   if (forecast.openCount === 0) {
     return (
-      <Panel title="What is still coming" className="c6">
+      <Panel title="What is still coming" className="c6 ord-forecast">
         <p className="t-small">No open leads on this selection, so there is nothing left to forecast.</p>
       </Panel>
     );
@@ -644,7 +660,7 @@ export function ForecastPanel({ forecast, filters }: { forecast: ForecastResult;
     <Panel
       title="What is still coming"
       subtitle="Open pipeline weighted by how each stage has actually converted"
-      className="c6"
+      className="c6 ord-forecast"
       footer={
         <p className="t-micro">
           Weighted from this period&rsquo;s own conversion rates. A lead sitting at{' '}
@@ -741,7 +757,7 @@ export function RevenueTrend({
     <Panel
       title="Revenue delivered each month"
       subtitle="Cars handed over, by the month they were handed over"
-      className="c6"
+      className="c6 ord-die"
       aside={
         /* Month on month, not first to last. A trough-to-peak percentage on a
            six-point series is chosen by whichever month was lowest. */
@@ -786,7 +802,7 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
     <Panel
       title="Lead source"
       subtitle="Share of leads that became a sale, against average deal value"
-      className="c6"
+      className="c6 ord-source"
       padded={false}
       footer={
         worst ? (
@@ -853,11 +869,11 @@ export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult
   const ceilingUnreachable = targetUnits > totalLeads;
 
   return (
-    <section className="panel c12" style={{ background: 'var(--surface-2)' }}>
-      <div
-        className="panel-bd"
-        style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 'var(--s7)', alignItems: 'center' }}
-      >
+    <section className="panel c12 ord-targets" style={{ background: 'var(--surface-2)' }}>
+      {/* A fixed 280px + 1fr grid squeezed the prose into a one-word-per-line
+          ribbon on anything narrower than a laptop. `.split` collapses to a
+          single column below 1024. */}
+      <div className="panel-bd split">
         {/* A 12% attainment figure invites the reader to conclude the group is
             failing. The real finding is that the target itself is unbuildable,
             so the planning defect leads and the percentage follows it. */}

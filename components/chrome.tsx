@@ -35,6 +35,37 @@ function toggle(list: string[], value: string): string[] {
 
 export type NavKey = 'overview' | 'actions' | 'leads' | 'models';
 
+/**
+ * Shape, not decoration: on the tab bar the label is 11px and an icon is what
+ * the eye actually lands on. They are never used beside a label elsewhere.
+ */
+const NAV_ICON: Record<NavKey, React.ReactNode> = {
+  overview: (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M3 12.5 7.5 8l3.5 3.5L17 5.5" />
+      <path d="M3 16.5h14" />
+    </svg>
+  ),
+  actions: (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M10 2.5 18 16.5H2Z" />
+      <path d="M10 8v3.2" />
+      <path d="M10 13.6v.1" />
+    </svg>
+  ),
+  leads: (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M3.5 5h13M3.5 10h13M3.5 15h8" />
+    </svg>
+  ),
+  models: (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M3 12.5h14l-1.4-4.2A2 2 0 0 0 13.7 7H6.3a2 2 0 0 0-1.9 1.3Z" />
+      <path d="M5.5 15.5v-3M14.5 15.5v-3" />
+    </svg>
+  ),
+};
+
 const NAV: { key: NavKey; label: string; href: string }[] = [
   { key: 'overview', label: 'Overview', href: '/' },
   { key: 'actions', label: 'Act now', href: '/actions' },
@@ -100,6 +131,34 @@ export function TopBar({
             aria-current={item.key === current ? 'page' : undefined}
           >
             {item.key === 'overview' && asBranch ? 'My branch' : item.label}
+            {item.key === 'actions' && actionCount !== undefined && actionCount > 0 ? (
+              <span className="nav-badge" aria-label={`${actionCount} items need attention`}>
+                {actionCount}
+              </span>
+            ) : null}
+          </Link>
+        ))}
+      </nav>
+
+      {/*
+        Phones get the same four destinations as a thumb-reachable tab bar
+        instead. In the top bar they wrapped onto their own row and pushed the
+        first real content most of a screen down.
+      */}
+      <nav className="tabbar" aria-label="Main">
+        {NAV.map((item) => (
+          <Link
+            key={item.key}
+            href={navHref(item)}
+            className={item.key === current ? 'tabbar-link on' : 'tabbar-link'}
+            aria-current={item.key === current ? 'page' : undefined}
+          >
+            <span className="tabbar-ico" aria-hidden="true">
+              {NAV_ICON[item.key]}
+            </span>
+            <span className="tabbar-txt">
+              {item.key === 'overview' && asBranch ? 'My branch' : item.label}
+            </span>
             {item.key === 'actions' && actionCount !== undefined && actionCount > 0 ? (
               <span className="nav-badge" aria-label={`${actionCount} items need attention`}>
                 {actionCount}
@@ -183,27 +242,69 @@ export function TopBar({
   );
 }
 
-function FilterMenu({
-  label,
-  value,
-  active,
-  children,
-}: {
+/**
+ * One filter option, expressed once and rendered twice.
+ *
+ * The two presentations are genuinely different interfaces, not one interface
+ * at two sizes: on a pointer device a row of dropdown chips is fast, and on a
+ * phone it was actively broken — three native `<details>` popovers could be
+ * open at once, stacked on top of each other and on top of the page. So the
+ * phone gets a full-screen sheet with every group laid out at once, and the
+ * options are built from a single description so the two can never disagree.
+ */
+interface FilterOption {
+  key: string;
   label: string;
+  href: string;
+  selected: boolean;
+}
+
+interface FilterGroup {
+  key: string;
+  /** Chip label, e.g. "Period". */
+  label: string;
+  /** Chip value, e.g. "Jun – Dec". */
   value: string;
   active: boolean;
-  children: React.ReactNode;
-}) {
+  options: FilterOption[];
+}
+
+function OptionLink({ option }: { option: FilterOption }) {
   return (
-    <details className="menu">
-      <summary className={active ? 'filter is-active' : 'filter'}>
-        <span className="k">{label}</span>
-        {value}
+    <Link href={option.href} className={option.selected ? 'menu-item on' : 'menu-item'}>
+      <span className="menu-tick" aria-hidden="true">
+        {option.selected ? '✓' : ''}
+      </span>
+      {option.label}
+    </Link>
+  );
+}
+
+/**
+ * A dropdown chip. `name` makes the group an exclusive accordion in browsers
+ * that support it; `data-filter-menu` lets the tiny enhancement script in the
+ * layout close siblings everywhere else. Without one of the two, opening a
+ * second menu leaves the first one open underneath it.
+ */
+function FilterMenu({ group }: { group: FilterGroup }) {
+  return (
+    <details className="menu" name="dp-filter" data-filter-menu="">
+      <summary className={group.active ? 'filter is-active' : 'filter'}>
+        <span className="k">{group.label}</span>
+        {group.value}
         <span className="caret" aria-hidden="true">
           ▾
         </span>
       </summary>
-      <div className="menu-pop">{children}</div>
+      <div className="menu-pop">
+        {group.options.map((option) =>
+          option.key === '--sep--' ? (
+            <div className="menu-sep" key={option.key} />
+          ) : (
+            <OptionLink key={option.key} option={option} />
+          ),
+        )}
+      </div>
     </details>
   );
 }
@@ -231,17 +332,22 @@ export function FilterBar({
   branchScope?: { branchId: string };
 }) {
   const period = periodFor(state);
-  const scopedBranch = branchScope
-    ? branches.find((b) => b.id === branchScope.branchId)
-    : undefined;
+  const scopedBranch = branchScope ? branches.find((b) => b.id === branchScope.branchId) : undefined;
+
   const branchLabel = scopedBranch
-    ? scopedBranch.name
+    ? scopedBranch.name.replace(' Toyota', '')
     : state.branchIds.length === 0
       ? `All ${branches.length}`
       : state.branchIds.length === 1
-        ? (branches.find((b) => b.id === state.branchIds[0])?.name ?? state.branchIds[0])
+        ? (branches.find((b) => b.id === state.branchIds[0])?.name.replace(' Toyota', '') ??
+          state.branchIds[0])
         : `${state.branchIds.length} selected`;
-  const modelLabel = state.models.length === 0 ? 'All' : state.models.length === 1 ? state.models[0] : `${state.models.length} selected`;
+  const modelLabel =
+    state.models.length === 0
+      ? 'All'
+      : state.models.length === 1
+        ? state.models[0]
+        : `${state.models.length} selected`;
   const sourceLabel =
     state.sources.length === 0
       ? 'All'
@@ -249,140 +355,163 @@ export function FilterBar({
         ? SOURCE_LABELS[state.sources[0]]
         : `${state.sources.length} selected`;
 
+  const separator: FilterOption = { key: '--sep--', label: '', href: '', selected: false };
+
+  const groups: FilterGroup[] = [
+    {
+      key: 'period',
+      label: 'Period',
+      value: period.shortLabel,
+      active: state.periodId !== DEFAULT_PERIOD.id,
+      options: PERIOD_PRESETS.map((preset) => ({
+        key: preset.id,
+        label: preset.label,
+        href: `${basePath}${toQueryString({ ...state, periodId: preset.id })}`,
+        selected: preset.id === state.periodId,
+      })),
+    },
+    scopedBranch
+      ? {
+          key: 'branch',
+          label: 'Viewing',
+          value: branchLabel,
+          active: true,
+          options: [
+            {
+              key: 'all',
+              label: 'All branches (overview)',
+              href: `/${toQueryString(withoutAxis(state, 'branch'))}`,
+              selected: false,
+            },
+            separator,
+            ...branches.map((branch) => ({
+              key: branch.id,
+              label: branch.name,
+              href: `/branch/${branch.id}${toQueryString(withoutAxis(state, 'branch'))}`,
+              selected: branch.id === scopedBranch.id,
+            })),
+          ],
+        }
+      : {
+          key: 'branch',
+          label: 'Branch',
+          value: branchLabel,
+          active: state.branchIds.length > 0,
+          options: [
+            {
+              key: 'all',
+              label: 'All branches',
+              href: `${basePath}${toQueryString(withoutAxis(state, 'branch'))}`,
+              selected: state.branchIds.length === 0,
+            },
+            separator,
+            ...branches.map((branch) => ({
+              key: branch.id,
+              label: branch.name,
+              href: `${basePath}${toQueryString({ ...state, branchIds: toggle(state.branchIds, branch.id) })}`,
+              selected: state.branchIds.includes(branch.id),
+            })),
+          ],
+        },
+    {
+      key: 'model',
+      label: 'Vehicle',
+      value: modelLabel,
+      active: state.models.length > 0,
+      options: [
+        {
+          key: 'all',
+          label: 'All vehicles',
+          href: `${basePath}${toQueryString(withoutAxis(state, 'model'))}`,
+          selected: state.models.length === 0,
+        },
+        separator,
+        ...ALL_MODELS.map((model) => ({
+          key: model,
+          label: model,
+          href: `${basePath}${toQueryString({ ...state, models: toggle(state.models, model) as FilterState['models'] })}`,
+          selected: state.models.includes(model),
+        })),
+      ],
+    },
+    {
+      key: 'source',
+      label: 'Source',
+      value: sourceLabel,
+      active: state.sources.length > 0,
+      options: [
+        {
+          key: 'all',
+          label: 'All sources',
+          href: `${basePath}${toQueryString(withoutAxis(state, 'source'))}`,
+          selected: state.sources.length === 0,
+        },
+        separator,
+        ...ALL_SOURCES.map((source) => ({
+          key: source,
+          label: SOURCE_LABELS[source],
+          href: `${basePath}${toQueryString({ ...state, sources: toggle(state.sources, source) as FilterState['sources'] })}`,
+          selected: state.sources.includes(source),
+        })),
+      ],
+    },
+  ];
+
+  const activeCount = groups.filter((group) => group.active && group.key !== 'branch').length +
+    (scopedBranch ? 0 : state.branchIds.length > 0 ? 1 : 0);
+
   return (
     <div className="filterbar">
       {leadingSlot}
-      <FilterMenu label="Period" value={period.shortLabel} active={state.periodId !== DEFAULT_PERIOD.id}>
-        {PERIOD_PRESETS.map((preset) => (
-          <Link
-            key={preset.id}
-            href={`${basePath}${toQueryString({ ...state, periodId: preset.id })}`}
-            className={preset.id === state.periodId ? 'menu-item on' : 'menu-item'}
-          >
-            <span className="menu-tick" aria-hidden="true">
-              {preset.id === state.periodId ? '✓' : ''}
-            </span>
-            {preset.label}
-          </Link>
+
+      {/* Pointer-sized: a row of dropdown chips. */}
+      <div className="fb-chips">
+        {groups.map((group) => (
+          <FilterMenu key={group.key} group={group} />
         ))}
-      </FilterMenu>
+      </div>
 
-      {scopedBranch ? (
-        <FilterMenu label="Viewing" value={branchLabel} active>
-          <Link href={`/${toQueryString(withoutAxis(state, 'branch'))}`} className="menu-item">
-            <span className="menu-tick" aria-hidden="true" />
-            All branches (overview)
-          </Link>
-          <div className="menu-sep" />
-          {branches.map((branch) => {
-            const on = branch.id === scopedBranch.id;
-            return (
-              <Link
-                key={branch.id}
-                href={`/branch/${branch.id}${toQueryString(withoutAxis(state, 'branch'))}`}
-                className={on ? 'menu-item on' : 'menu-item'}
-              >
-                <span className="menu-tick" aria-hidden="true">
-                  {on ? '✓' : ''}
-                </span>
-                {branch.name}
-              </Link>
-            );
-          })}
-        </FilterMenu>
-      ) : (
-        <FilterMenu label="Branch" value={branchLabel} active={state.branchIds.length > 0}>
-          <Link
-            href={`${basePath}${toQueryString(withoutAxis(state, 'branch'))}`}
-            className={state.branchIds.length === 0 ? 'menu-item on' : 'menu-item'}
-          >
-            <span className="menu-tick" aria-hidden="true">
-              {state.branchIds.length === 0 ? '✓' : ''}
-            </span>
-            All branches
-          </Link>
-          <div className="menu-sep" />
-          {branches.map((branch) => {
-            const on = state.branchIds.includes(branch.id);
-            return (
-              <Link
-                key={branch.id}
-                href={`${basePath}${toQueryString({ ...state, branchIds: toggle(state.branchIds, branch.id) })}`}
-                className={on ? 'menu-item on' : 'menu-item'}
-              >
-                <span className="menu-tick" aria-hidden="true">
-                  {on ? '✓' : ''}
-                </span>
-                {branch.name}
-              </Link>
-            );
-          })}
-        </FilterMenu>
-      )}
-
-      <FilterMenu label="Model" value={modelLabel} active={state.models.length > 0}>
-        <Link
-          href={`${basePath}${toQueryString(withoutAxis(state, 'model'))}`}
-          className={state.models.length === 0 ? 'menu-item on' : 'menu-item'}
-        >
-          <span className="menu-tick" aria-hidden="true">
-            {state.models.length === 0 ? '✓' : ''}
-          </span>
-          All models
-        </Link>
-        <div className="menu-sep" />
-        {ALL_MODELS.map((model) => {
-          const on = state.models.includes(model);
-          return (
-            <Link
-              key={model}
-              href={`${basePath}${toQueryString({ ...state, models: toggle(state.models, model) as FilterState['models'] })}`}
-              className={on ? 'menu-item on' : 'menu-item'}
-            >
-              <span className="menu-tick" aria-hidden="true">
-                {on ? '✓' : ''}
-              </span>
-              {model}
-            </Link>
-          );
-        })}
-      </FilterMenu>
-
-      <FilterMenu label="Source" value={sourceLabel} active={state.sources.length > 0}>
-        <Link
-          href={`${basePath}${toQueryString(withoutAxis(state, 'source'))}`}
-          className={state.sources.length === 0 ? 'menu-item on' : 'menu-item'}
-        >
-          <span className="menu-tick" aria-hidden="true">
-            {state.sources.length === 0 ? '✓' : ''}
-          </span>
-          All sources
-        </Link>
-        <div className="menu-sep" />
-        {ALL_SOURCES.map((source) => {
-          const on = state.sources.includes(source);
-          return (
-            <Link
-              key={source}
-              href={`${basePath}${toQueryString({ ...state, sources: toggle(state.sources, source) as FilterState['sources'] })}`}
-              className={on ? 'menu-item on' : 'menu-item'}
-            >
-              <span className="menu-tick" aria-hidden="true">
-                {on ? '✓' : ''}
-              </span>
-              {SOURCE_LABELS[source]}
-            </Link>
-          );
-        })}
-      </FilterMenu>
+      {/* Phone-sized: one button opening a sheet that holds every group. */}
+      <details className="fb-sheet" data-filter-menu="">
+        <summary className={activeCount > 0 ? 'filter is-active' : 'filter'}>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+            <path d="M2 4h12M4.5 8h7M7 12h2" strokeLinecap="round" />
+          </svg>
+          Filters
+          {activeCount > 0 ? <span className="fb-count num">{activeCount}</span> : null}
+        </summary>
+        <div className="fb-panel">
+          <div className="fb-panel-in">
+            {groups.map((group) => (
+              <section key={group.key} className="fb-group">
+                <h2 className="t-label">{group.label}</h2>
+                <div className="fb-opts">
+                  {group.options.map((option) =>
+                    option.key === '--sep--' ? null : <OptionLink key={option.key} option={option} />,
+                  )}
+                </div>
+              </section>
+            ))}
+            <div className="fb-actions">
+              <span className="t-micro num">{formatNumber(leadCount)} leads match</span>
+              <span className="sp" />
+              {isFiltered(state) ? (
+                <Link href={basePath} className="btn">
+                  Clear all
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </details>
 
       <span className="sp" />
       {isFiltered(state) ? (
-        <Link href={basePath} className="btn btn-quiet btn-sm">
+        <Link href={basePath} className="btn btn-quiet btn-sm fb-clear">
           Clear all
         </Link>
       ) : null}
-      <span className="t-micro num">{formatNumber(leadCount)} leads</span>
+      <span className="t-micro num fb-count-label">{formatNumber(leadCount)} leads</span>
     </div>
   );
 }

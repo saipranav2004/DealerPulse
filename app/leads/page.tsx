@@ -244,7 +244,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
             <div style={{ padding: 'var(--s4) var(--s5)' }}>
               <div className="panel" style={{ overflow: 'hidden' }}>
                 <div className="scrollx">
-                  <table className="tbl tbl-hover tbl-fold">
+                  <table className="tbl tbl-hover tbl-fold tbl-cards">
                     <thead>
                       <tr>
                         {COLUMNS.map((column) => {
@@ -278,7 +278,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                     <tbody>
                       {table.pageRows.map((row) => (
                         <tr key={row.id}>
-                          <td className="pin" style={{ paddingLeft: 16 }}>
+                          <td className="pin cell-name" style={{ paddingLeft: 16 }}>
                             <Link
                               href={tableHref({ lead: row.id })}
                               scroll={false}
@@ -296,8 +296,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                           </td>
                           <td className="muted fold">{row.branchName.replace(' Toyota', '')}</td>
                           <td className="muted fold">{row.repName}</td>
-                          <td className="muted">{row.model}</td>
-                          <td>
+                          <td className="muted cell-model">{row.model}</td>
+                          <td className="cell-stage">
                             <span
                               className={
                                 row.isStalled
@@ -312,7 +312,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                               {row.isStalled ? 'Paid, undelivered' : STAGE_LABEL[row.status]}
                             </span>
                           </td>
-                          <td className="r num">{formatCurrency(row.dealValue)}</td>
+                          <td className="r num cell-value">{formatCurrency(row.dealValue)}</td>
                           {/* Idle time only means something while a lead is still live.
                               A delivered car sitting "144 days" is finished, not urgent. */}
                           <td
@@ -324,7 +324,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                           >
                             {isLive(row.status) ? `${row.idleDays} d` : '—'}
                           </td>
-                          <td className="r" style={{ paddingRight: 16 }}>
+                          <td className="r cell-act" style={{ paddingRight: 16 }}>
                             <Link href={tableHref({ lead: row.id })} scroll={false} className="btn btn-sm">
                               Open
                             </Link>

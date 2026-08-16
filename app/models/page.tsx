@@ -151,6 +151,8 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
                   </p>
                 }
               >
+                <div className="scrollx">
+                <div className="chart-wide">
                 <ScatterPlot
                   points={models.models.map((model) => ({
                     key: model.model,
@@ -162,6 +164,8 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
                   xLabel="Leads"
                   yLabel="Average price"
                 />
+                </div>
+                </div>
               </Panel>
 
               <Panel
@@ -189,7 +193,7 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
                         <th className="r">Revenue</th>
                         <th className="r fold">Share of revenue</th>
                         <th className="r fold">Median days to sell</th>
-                        <th className="r" style={{ paddingRight: 16 }}>
+                        <th className="r fold-sm" style={{ paddingRight: 16 }}>
                           Still open
                         </th>
                       </tr>
@@ -229,7 +233,7 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
                           >
                             {model.medianCycleDays === null ? '—' : `${model.medianCycleDays} d`}
                           </td>
-                          <td className="r num" style={{ paddingRight: 16 }}>
+                          <td className="r num fold-sm" style={{ paddingRight: 16 }}>
                             {model.openCount}
                           </td>
                         </tr>

@@ -35,6 +35,15 @@ type ActedState = Record<string, string>;
 
 const STORAGE_KEY = 'dealerpulse.queue.actions.v1';
 
+/**
+ * Rows shown at once. This dataset's largest queue is 47, but a real dealer
+ * group's stalled-order list is thousands, and a queue that renders all of them
+ * stops being usable long before it stops rendering. Selection and "select all"
+ * deliberately operate on the visible page, so a bulk action can never touch a
+ * row the user has not seen.
+ */
+const PAGE_SIZE = 25;
+
 function loadActed(): ActedState {
   if (typeof window === 'undefined') return {};
   try {
@@ -72,6 +81,20 @@ export function ActionQueue({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [acted, setActed] = useState<ActedState>({});
   const [hydrated, setHydrated] = useState(false);
+  const [page, setPage] = useState(1);
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = useMemo(
+    () => rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [rows, safePage],
+  );
+
+  // A filter change can shorten the queue under a reader who has paged forward.
+  useEffect(() => {
+    setPage(1);
+    setSelected(new Set());
+  }, [rows]);
 
   useEffect(() => {
     setActed(loadActed());
@@ -96,10 +119,14 @@ export function ActionQueue({
     });
   }, []);
 
-  const allSelected = rows.length > 0 && rows.every((row) => selected.has(row.leadId));
+  const allSelected = pageRows.length > 0 && pageRows.every((row) => selected.has(row.leadId));
   const toggleAll = useCallback(() => {
-    setSelected((current) => (current.size === rows.length ? new Set() : new Set(rows.map((r) => r.leadId))));
-  }, [rows]);
+    setSelected((current) =>
+      pageRows.every((row) => current.has(row.leadId))
+        ? new Set()
+        : new Set(pageRows.map((row) => row.leadId)),
+    );
+  }, [pageRows]);
 
   const selectedRows = useMemo(() => rows.filter((row) => selected.has(row.leadId)), [rows, selected]);
   const selectedValue = selectedRows.reduce((sum, row) => sum + row.dealValue, 0);
@@ -223,7 +250,7 @@ export function ActionQueue({
             className="chk"
             role="checkbox"
             aria-checked={allSelected}
-            aria-label={allSelected ? 'Deselect all rows' : 'Select all rows'}
+            aria-label={allSelected ? 'Deselect all rows on this page' : 'Select all rows on this page'}
             onClick={toggleAll}
           >
             ✓
@@ -241,7 +268,7 @@ export function ActionQueue({
           </span>
         </div>
 
-        {rows.map((row) => {
+        {pageRows.map((row) => {
           const isSelected = selected.has(row.leadId);
           const actedLabel = hydrated ? acted[row.leadId] : undefined;
           return (
@@ -316,11 +343,35 @@ export function ActionQueue({
           }}
         >
           <p className="t-micro">
-            {remaining} of {rows.length} still need a decision
+            Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, rows.length)} of{' '}
+            {rows.length} · {remaining} still need a decision
           </p>
           <span className="sp" />
+          {pageCount > 1 ? (
+            <span className="pager" style={{ gap: 6 }}>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={safePage === 1}
+              >
+                ← Previous
+              </button>
+              <span className="t-micro num">
+                Page {safePage} of {pageCount}
+              </span>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                disabled={safePage === pageCount}
+              >
+                Next →
+              </button>
+            </span>
+          ) : null}
           <button type="button" className="btn btn-sm" onClick={() => exportCsv(rows)}>
-            Export all
+            Export all {rows.length}
           </button>
         </div>
       </div>
