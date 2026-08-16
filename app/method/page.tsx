@@ -19,7 +19,10 @@ export default function MethodPage() {
 
   return (
     <div className="app">
-      <TopBar reconciledCount={dataset.reconciliation.reconciledCount} />
+      <TopBar
+        reconciledCount={dataset.reconciliation.reconciledCount}
+        totalLeads={dataset.leads.length}
+      />
       <div className="filterbar">
         <Breadcrumb items={[{ label: 'Overview', href: '/' }, { label: 'How this was calculated' }]} />
       </div>

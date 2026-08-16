@@ -1392,6 +1392,146 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
 }
 
 /* ==========================================================================
+   Sticky table headers
+
+   A 25-row table scrolls the header off the top, and from that point every
+   column is unlabelled — the same failure the phone record cards exist to
+   avoid, just reached by scrolling instead of by narrowing. The header row
+   stays put instead.
+
+   `.pin` (the sticky first column) already uses z-index 1, so the header sits
+   above it, and the header's own first cell has to beat both.
+   ========================================================================== */
+/*
+   `position: sticky` resolves against the nearest scroll container, and
+   `.scrollx` is one: `overflow-x: auto` computes `overflow-y` to `auto` too, so
+   a header stuck inside it is stuck to a box that never scrolls vertically —
+   which is to say, not stuck at all. Measured at -512px after a 900px page
+   scroll before this was understood.
+
+   So the container is given a real vertical extent to stick within, and only
+   where that earns its keep: the lead list, which is the one table long enough
+   to lose its header (25 rows), and only from tablet up, since below 768px it
+   is record cards with no header to lose. */
+.tbl thead th { background: var(--surface-2); }
+@media (min-width: 768px) {
+  .scrollx.is-tall {
+    max-height: calc(100vh - 300px);
+    min-height: 320px;
+    overflow-y: auto;
+  }
+  .scrollx.is-tall .tbl thead th {
+    position: sticky; top: 0; z-index: 2;
+  }
+  /* `.pin` (the sticky first column) is z-index 1, so the header must clear it
+     and the header's own first cell must clear both. */
+  .scrollx.is-tall .tbl thead th.pin { z-index: 3; }
+  /* Without a painted edge the first body row slides under nothing. */
+  .scrollx.is-tall .tbl thead th::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+    height: 1px; background: var(--rule-strong);
+  }
+}
+
+/* ==========================================================================
+   Row density
+
+   One attribute on the document element, so nothing else has to know the
+   setting exists. Only spacing changes — never a font size, never a colour,
+   never which columns are shown: compact must stay the same product, and a
+   reader must not have to check which mode they are in to trust a number.
+   ========================================================================== */
+:root[data-density="compact"] {
+  --s3: 8px;
+  --s4: 11px;
+  --s5: 14px;
+}
+:root[data-density="compact"] .tbl td,
+:root[data-density="compact"] .tbl th { padding-top: 3px; padding-bottom: 3px; }
+:root[data-density="compact"] .q-row { padding-top: 6px; padding-bottom: 6px; }
+:root[data-density="compact"] .panel-hd { padding-top: 9px; padding-bottom: 9px; }
+:root[data-density="compact"] .dp-cell { padding-top: 5px; padding-bottom: 5px; }
+/*
+  A row here is two lines of text, so trimming cell padding alone barely moved
+  it — 49px to 49px on the first attempt. The second line is what carries the
+  height, so compact tightens the leading of the secondary line and closes the
+  gap above it. It still renders: compact changes spacing, never which facts
+  are shown, because a reader must not have to check which mode they are in
+  before trusting what they can see.
+*/
+:root[data-density="compact"] .tbl .t-micro { line-height: 1.25; margin-top: 0; }
+:root[data-density="compact"] .tbl .unfold { margin-top: 0; }
+:root[data-density="compact"] .tbl .dp-name { padding: 1px 0; margin: -1px 0; }
+/* The 24px pointer floor and the 44px fingertip floor outrank any density
+   setting; compact may not shrink a target below them. */
+:root[data-density="compact"] .tbl .dp-name { min-height: 24px; }
+@media (max-width: 1023px) {
+  :root[data-density="compact"] .tbl .dp-name { padding: 13px 0; margin: 0; }
+}
+
+/* ==========================================================================
+   Shortcut sheet
+   ========================================================================== */
+.sc { max-height: 74vh; }
+.sc-hd {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+  padding: var(--s4); border-bottom: 1px solid var(--rule);
+}
+.sc-bd { padding: var(--s4); overflow-y: auto; display: grid; gap: var(--s5); }
+.sc-g .t-label { margin-bottom: 6px; }
+.sc-l { margin: 0; display: grid; gap: 5px; }
+.sc-r { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: var(--s3); align-items: baseline; }
+.sc-r dt { margin: 0; }
+.sc-r dd { margin: 0; font-size: 12.5px; color: var(--ink-2); }
+
+/* ==========================================================================
+   Menus on a phone
+
+   Every popup in the chrome hangs off its own trigger with `position:
+   absolute`. On a wide bar that is right; on a 393px screen it is not — the
+   role picker rendered as a 210px column with "Group CEO — all branches"
+   broken over three lines, and the data-quality panel anchored `right: 0` to a
+   trigger near the left edge, so it ran off the side of the screen.
+
+   Below 768px they become bottom sheets instead: pinned to the viewport rather
+   than to the trigger, full width, clear of the tab bar. That is the native
+   pattern on a phone and it is the one the filter sheet in this same bar
+   already uses, so the chrome now behaves consistently.
+   ========================================================================== */
+@media (max-width: 767px) {
+  .menu[open] > .menu-pop,
+  .menu[open] > .menu-pop.to-right {
+    position: fixed;
+    left: var(--s3); right: var(--s3);
+    /* Above the tab bar and its safe-area inset. */
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px) + var(--s3));
+    top: auto;
+    width: auto; min-width: 0; max-width: none;
+    max-height: 56vh;
+    padding: var(--s2);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, .20);
+    animation: sheet-in var(--dur-short) var(--ease-out) both;
+  }
+  /*
+    Deliberately no scrim. A pseudo-element cannot be an event target of its
+    own, so a `::before` covering the viewport hit-tests as the `<details>`
+    itself — which means the outside-click handler sees the click as *inside*
+    the menu and the sheet can never be dismissed by tapping away from it. A
+    dimmed backdrop is not worth trapping the reader behind; the elevation
+    shadow separates the sheet instead, and Escape or a tap outside closes it
+    through the same document-level handlers every other menu here uses.
+  */
+  /* Roomier rows: this is a thumb target list now, not a cursor list. */
+  .menu[open] > .menu-pop .menu-item { min-height: 46px; padding: 10px var(--s3); }
+  .menu[open] > .menu-pop .t-label { padding: var(--s2) var(--s3) 4px; }
+  .menu[open] > .menu-pop dl { padding: 0 var(--s3) var(--s3); }
+  .menu[open] > .menu-pop > p { padding: 0 var(--s3); }
+  /* The two-column definition list collapsed to one word per line at 210px. */
+  .menu[open] > .menu-pop dl { grid-template-columns: 1fr auto !important; gap: 6px var(--s4) !important; }
+}
+@keyframes sheet-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ==========================================================================
    Definition hint
 
    The ⓘ beside a panel title. A metric's definition is read once; a subtitle
@@ -1445,15 +1585,17 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
 /* ==========================================================================
    Command palette
    ========================================================================== */
+/* An icon button, sized and shaped exactly like the theme toggle beside it, so
+   the top bar reads as one row of controls rather than a control and a field. */
 .cmdk-open {
-  display: inline-flex; align-items: center; gap: 7px; min-height: 24px;
-  height: 26px; padding: 0 8px; margin-left: var(--s3); flex: none;
-  border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
-  background: var(--surface); color: var(--ink-3);
-  font-family: var(--sans); font-size: 12px; cursor: pointer;
-  transition: border-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+  display: inline-grid; place-items: center; width: 26px; height: 26px;
+  margin-left: var(--s3); flex: none; padding: 0;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  background: none; color: var(--ink-3); cursor: pointer;
+  transition: border-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out),
+              background-color var(--dur-micro) var(--ease-out);
 }
-.cmdk-open:hover { border-color: var(--accent); color: var(--ink-2); }
+.cmdk-open:hover { border-color: var(--rule); background: var(--surface-2); color: var(--ink); }
 .cmdk-kbd {
   font-family: var(--mono); font-size: 10px; color: var(--ink-3);
   border: 1px solid var(--rule); border-radius: 3px; padding: 1px 4px; background: var(--surface-2);
@@ -1500,7 +1642,7 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
    around, and 560px of overlay on a 393px screen is not. */
 /* Stated here rather than in the touch breakpoint above: these rules share a
    specificity with the base rule, so they have to come after it to win. */
-@media (max-width: 1023px) { .cmdk-open { height: 44px; min-height: 44px; } }
+@media (max-width: 1023px) { .cmdk-open { width: 44px; height: 44px; } }
 /* The disclosure controls added by the density pass are 24px targets, which
    is the pointer floor but not the fingertip one. */
 @media (max-width: 1023px) {
@@ -1509,7 +1651,7 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
   /* A short column label ("Rep") gave a 36px-wide sort target. */
   .sortbtn { min-width: 44px; }
 }
-@media (max-width: 767px) { .cmdk-open { display: none; } }
+
 
 /* ==========================================================================
    Saved views
@@ -1597,5 +1739,6 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
   .tl > li { animation: none !important; opacity: 1 !important; transform: none !important; }
   /* The palette opens immediately; a skeleton no longer waits to fade in. */
   .cmdk { animation: none !important; }
+  .menu[open] > .menu-pop { animation: none !important; }
   [aria-busy="true"] { animation: none !important; opacity: 1 !important; }
 }

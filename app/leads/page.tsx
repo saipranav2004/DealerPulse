@@ -246,7 +246,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           <>
             <div style={{ padding: 'var(--s4) var(--s5)' }}>
               <div className="panel" style={{ overflow: 'hidden' }}>
-                <div className="scrollx">
+                <div className="scrollx is-tall">
                   <table className="tbl tbl-hover tbl-fold tbl-rc">
                     <thead>
                       <tr>

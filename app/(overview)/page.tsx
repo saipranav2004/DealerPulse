@@ -126,6 +126,7 @@ export default async function OverviewPage({
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
         commands={buildCommandIndex(dataset, state)}
+        totalLeads={dataset.leads.length}
         viewAs={viewAs}
         branches={dataset.branches}
         subtitle={`Toyota Group · ${dataset.branches.length} branches`}

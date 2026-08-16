@@ -154,31 +154,46 @@ export function CommandPalette({ items }: { items: CommandItem[] }) {
     }
   };
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="cmdk-open"
-        onClick={() => {
-          restoreTo.current = document.activeElement as HTMLElement;
-          setOpen(true);
-        }}
-        aria-label="Open the command palette"
-      >
-        <span className="cmdk-open-t">Search</span>
-        <kbd className="cmdk-kbd">⌘K</kbd>
-      </button>
-    );
-  }
+  /*
+   * The trigger is an icon, not a labelled box. A search field in the top bar
+   * promises a field — you click it expecting to type where it sits — while
+   * this opens a palette in the centre of the screen. An icon promises only
+   * "search lives here", which is what actually happens. The shortcut is on
+   * the tooltip and the accessible name rather than printed permanently.
+   */
+  const trigger = (hidden: boolean) => (
+    <button
+      type="button"
+      className="cmdk-open"
+      onClick={
+        hidden
+          ? undefined
+          : () => {
+              restoreTo.current = document.activeElement as HTMLElement;
+              setOpen(true);
+            }
+      }
+      title="Search — Ctrl K"
+      aria-label="Search branches, people and vehicles. Shortcut: Control or Command K."
+      aria-hidden={hidden || undefined}
+      tabIndex={hidden ? -1 : undefined}
+    >
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" />
+        <path d="m10.6 10.6 3 3" strokeLinecap="round" />
+      </svg>
+    </button>
+  );
+
+  if (!open) return trigger(false);
 
   let lastGroup = '';
 
   return (
     <>
-      <button type="button" className="cmdk-open" aria-hidden="true" tabIndex={-1}>
-        <span className="cmdk-open-t">Search</span>
-        <kbd className="cmdk-kbd">⌘K</kbd>
-      </button>
+      {/* The trigger stays in the layout while the palette is open so the bar
+          does not reflow underneath the overlay. */}
+      {trigger(true)}
       <div className="cmdk-scrim" onClick={close} />
       <div className="cmdk" role="dialog" aria-modal="true" aria-label="Command palette">
         <input

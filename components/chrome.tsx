@@ -9,6 +9,8 @@
 
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { DensityToggle } from '@/components/density-toggle';
+import { Shortcuts } from '@/components/shortcuts';
 import { CommandPalette, type CommandItem } from '@/components/command-palette';
 import { SavedViews } from '@/components/saved-views';
 import { counted, formatNumber } from '@/lib/format';
@@ -108,8 +110,14 @@ export function TopBar({
   branches?: readonly Branch[];
   /** Built on the server so the browser never needs the dataset to search it. */
   commands?: CommandItem[];
-  /** Total leads in the dataset — reported, never written down. */
-  totalLeads?: number;
+  /**
+   * Total leads in the dataset — reported, never written down.
+   *
+   * Required rather than optional: as an optional prop with an em-dash
+   * fallback, one page that forgot to pass it rendered "Leads loaded —",
+   * which reads as "we could not compute this" rather than as a mistake.
+   */
+  totalLeads: number;
 }) {
   const asBranch = viewAs ? branches.find((b) => b.id === viewAs) : undefined;
 
@@ -183,7 +191,7 @@ export function TopBar({
 
       <span className="sp" />
       {branches.length > 0 ? (
-        <details className="menu">
+        <details className="menu" data-filter-menu="">
           <summary className="marker-btn" aria-label="Change who you are viewing as">
             <span className="dim vw-label">Viewing as</span>
             <u>{asBranch ? `${asBranch.name.replace(' Toyota', '')} manager` : 'Group CEO'}</u>
@@ -251,8 +259,10 @@ export function TopBar({
           </p>
         </div>
       </details>
+      <DensityToggle />
       <ThemeToggle />
-      <details className="menu">
+      <Shortcuts />
+      <details className="menu" data-filter-menu="">
         <summary className="marker-btn" aria-label={`${reconciledCount} records reconciled — data quality`}>
           <u>
             {reconciledCount} <span className="recon-word">records </span>reconciled
@@ -265,7 +275,7 @@ export function TopBar({
           <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 12px' }}>
             <dt className="t-small">Leads loaded</dt>
             <dd className="num t-small" style={{ margin: 0, textAlign: 'right' }}>
-              {totalLeads === undefined ? '—' : formatNumber(totalLeads)}
+              {formatNumber(totalLeads)}
             </dd>
             <dt className="t-small">Status missing from history</dt>
             <dd className="num t-small" style={{ margin: 0, textAlign: 'right' }}>
