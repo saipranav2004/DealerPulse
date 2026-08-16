@@ -322,7 +322,9 @@ body {
 .tabbar { display: none; }
 
 .theme-btn {
-  display: inline-grid; place-items: center; width: 26px; height: 26px;
+  /* `flex: none`: as a shrinkable flex item in a crowded top bar this was
+     squeezed to 16px wide, below the 24px target floor. */
+  display: inline-grid; place-items: center; width: 26px; height: 26px; flex: none;
   border: 1px solid transparent; border-radius: var(--r-sm);
   background: none; color: var(--ink-3); cursor: pointer; padding: 0;
 }
@@ -338,6 +340,11 @@ body {
 }
 .marker-btn:hover { border-color: var(--rule); color: var(--ink-2); background: var(--surface-2); }
 .marker-btn u { text-decoration: underline dotted; text-underline-offset: 2px; }
+/* The freshness marker is now a disclosure. It keeps the marker's look and
+   gains the affordance: a dotted underline says there is more to read. */
+.marker.marker-btn { list-style: none; }
+.marker.marker-btn::-webkit-details-marker { display: none; }
+.marker.marker-btn > span:not(.marker-date-sm) { text-decoration: underline dotted; text-underline-offset: 2px; }
 
 .filterbar {
   display: flex; align-items: center; gap: var(--s2);
@@ -1380,6 +1387,134 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
   .tbl-rc td[data-rc="key"] { grid-column: 2; }
 }
 
+/* ==========================================================================
+   Command palette
+   ========================================================================== */
+.cmdk-open {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 24px;
+  height: 26px; padding: 0 8px; margin-left: var(--s3); flex: none;
+  border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink-3);
+  font-family: var(--sans); font-size: 12px; cursor: pointer;
+  transition: border-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+}
+.cmdk-open:hover { border-color: var(--accent); color: var(--ink-2); }
+.cmdk-kbd {
+  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+  border: 1px solid var(--rule); border-radius: 3px; padding: 1px 4px; background: var(--surface-2);
+}
+.cmdk-scrim {
+  position: fixed; inset: 0; z-index: 90; background: rgba(15, 22, 30, .34);
+  animation: scrim-in var(--dur-short) var(--ease-out) both;
+}
+.cmdk {
+  position: fixed; z-index: 91; left: 50%; top: 12vh; transform: translateX(-50%);
+  width: min(560px, calc(100vw - var(--s7)));
+  display: flex; flex-direction: column; max-height: 66vh;
+  background: var(--surface); border: 1px solid var(--rule-strong); border-radius: var(--r-md);
+  box-shadow: 0 18px 48px rgba(0,0,0,.22); overflow: hidden;
+  animation: cmdk-in var(--dur-short) var(--ease-out) both;
+}
+@keyframes cmdk-in { from { opacity: 0; transform: translateX(-50%) translateY(-6px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+.cmdk-in {
+  border: 0; border-bottom: 1px solid var(--rule); outline: 0;
+  padding: var(--s4); background: none; color: var(--ink);
+  font-family: var(--sans); font-size: 15px; width: 100%;
+}
+.cmdk-in::placeholder { color: var(--ink-3); }
+.cmdk-list { list-style: none; margin: 0; padding: var(--s2) 0; overflow-y: auto; flex: 1; }
+.cmdk-group {
+  margin: var(--s2) 0 2px; padding: 0 var(--s4);
+  font-size: 10px; font-weight: 500; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3);
+}
+.cmdk-row {
+  display: flex; align-items: center; gap: var(--s3); width: 100%;
+  padding: 7px var(--s4); border: 0; background: none; text-align: left; cursor: pointer;
+  color: var(--ink); font-family: var(--sans); font-size: 13px; text-decoration: none;
+}
+.cmdk-row[data-on="true"] { background: var(--accent-wash); }
+.cmdk-lab { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmdk-hint { font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.cmdk-empty { padding: var(--s5) var(--s4); font-size: 12.5px; color: var(--ink-3); }
+.cmdk-ft {
+  display: flex; gap: var(--s4); padding: 7px var(--s4);
+  border-top: 1px solid var(--rule); background: var(--surface-2);
+  font-size: 11px; color: var(--ink-3);
+}
+/* A palette is a keyboard tool; on a phone the bottom tab bar is the way
+   around, and 560px of overlay on a 393px screen is not. */
+/* Stated here rather than in the touch breakpoint above: these rules share a
+   specificity with the base rule, so they have to come after it to win. */
+@media (max-width: 1023px) { .cmdk-open { height: 44px; min-height: 44px; } }
+@media (max-width: 767px) { .cmdk-open { display: none; } }
+
+/* ==========================================================================
+   Saved views
+   ========================================================================== */
+.sv { position: relative; }
+.sv-pop {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40;
+  width: min(340px, calc(100vw - var(--s6)));
+  background: var(--surface); border: 1px solid var(--rule-strong); border-radius: var(--r-md);
+  box-shadow: 0 10px 28px rgba(0,0,0,.14); overflow: hidden;
+}
+.sv-none { margin: 0; padding: var(--s4); font-size: 12px; color: var(--ink-3); line-height: 1.5; }
+.sv-list { list-style: none; margin: 0; padding: var(--s2) 0; max-height: 300px; overflow-y: auto; }
+.sv-item { display: flex; align-items: stretch; }
+.sv-go {
+  flex: 1; min-width: 0; display: block; text-align: left; cursor: pointer;
+  padding: 6px var(--s4); border: 0; background: none; font-family: var(--sans);
+}
+.sv-go:hover { background: var(--surface-2); }
+.sv-name { display: block; font-size: 12.5px; font-weight: 500; color: var(--ink); }
+.sv-href {
+  display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sv-del {
+  flex: none; width: 32px; border: 0; background: none; cursor: pointer;
+  color: var(--ink-3); font-size: 16px; line-height: 1;
+}
+.sv-del:hover { color: var(--critical); }
+.sv-foot { padding: var(--s3) var(--s4); border-top: 1px solid var(--rule); background: var(--surface-2); }
+.sv-form { display: flex; gap: 6px; }
+.sv-in {
+  flex: 1; min-width: 0; height: 28px; padding: 0 8px;
+  border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink); font-family: var(--sans); font-size: 12.5px;
+}
+.sv-note { margin: 6px 0 0; font-size: 10.5px; color: var(--ink-3); }
+
+/* ==========================================================================
+   Print
+
+   A board pack is a real output for this product. Paper has no hover, no
+   scroll and no navigation, so the chrome goes and the content is allowed to
+   be as tall as it needs. Everything that carried meaning through colour also
+   carries it through weight or a label, so greyscale loses nothing.
+   ========================================================================== */
+@media print {
+  .topbar, .filterbar, .subset-bar, .tabbar, .cmdk-open, .cmdk, .cmdk-scrim,
+  .sv, .drawer-scrim, .pager, .bulkbar, .undo-bar { display: none !important; }
+  /* Panels must not be split across a page break mid-argument. */
+  .panel { break-inside: avoid; border: 1px solid #bbb !important; box-shadow: none !important; }
+  .grid { display: block !important; }
+  .grid > * { margin-bottom: 12pt; }
+  .verdict { break-after: avoid; }
+  /* Scroll containers have no meaning on paper. */
+  .scrollx, .tbl-fold, .tbl-fold-sm { overflow: visible !important; min-width: 0 !important; }
+  /* A hover-only figure would print as an empty box. */
+  .fnl-tip, .tr-tip, .tr-cross { display: none !important; }
+  /* Where a link goes matters once it cannot be clicked — but only for links
+     in prose. Annotating every row link turned each table into two columns of
+     URLs, which is noise, not provenance. */
+  main p a[href^="/"]::after,
+  .verdict-acts a[href^="/"]::after { content: " (" attr(href) ")"; font-size: 8pt; color: #555; }
+  a { text-decoration: none; color: #000; }
+  body { background: #fff; }
+  @page { margin: 14mm; }
+}
+
 /* The contract. Anything that animates must survive this being applied. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -1392,4 +1527,7 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
   .fnl-bar-grow { animation: none !important; transform: none !important; }
   /* Status history appears whole rather than one node at a time. */
   .tl > li { animation: none !important; opacity: 1 !important; transform: none !important; }
+  /* The palette opens immediately; a skeleton no longer waits to fade in. */
+  .cmdk { animation: none !important; }
+  [aria-busy="true"] { animation: none !important; opacity: 1 !important; }
 }

@@ -11,6 +11,7 @@ import { computeActionCenter } from '@/lib/analytics/actionCenter';
 import { computeLeadTimeline } from '@/lib/analytics/leadTimeline';
 import { computeModels, groupMedianCycleDays } from '@/lib/analytics/models';
 import { getDataset } from '@/lib/data';
+import { buildCommandIndex } from '@/lib/command-index';
 import { formatCurrency, formatNumber, formatPercentValue } from '@/lib/format';
 import {
   hrefWithFilters,
@@ -53,6 +54,8 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
     <div className="app">
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
+        commands={buildCommandIndex(dataset, state)}
+        totalLeads={dataset.leads.length}
         viewAs={viewAs}
         branches={dataset.branches}
         current="models"

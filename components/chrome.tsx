@@ -9,6 +9,8 @@
 
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { CommandPalette, type CommandItem } from '@/components/command-palette';
+import { SavedViews } from '@/components/saved-views';
 import { counted, formatNumber } from '@/lib/format';
 import { DATA_CURRENT_AS_OF } from '@/lib/build-info';
 import {
@@ -18,6 +20,7 @@ import {
   PERIOD_PRESETS,
   SOURCE_LABELS,
   activeFilters,
+  describeFilters,
   hrefWithFilters,
   isFiltered,
   periodFor,
@@ -92,6 +95,8 @@ export function TopBar({
   filters,
   viewAs = null,
   branches = [],
+  commands,
+  totalLeads,
 }: {
   reconciledCount: number;
   subtitle?: string;
@@ -101,6 +106,10 @@ export function TopBar({
   /** Branch id the viewer is acting as, or null for the group view. */
   viewAs?: string | null;
   branches?: readonly Branch[];
+  /** Built on the server so the browser never needs the dataset to search it. */
+  commands?: CommandItem[];
+  /** Total leads in the dataset — reported, never written down. */
+  totalLeads?: number;
 }) {
   const asBranch = viewAs ? branches.find((b) => b.id === viewAs) : undefined;
 
@@ -123,6 +132,7 @@ export function TopBar({
       <Link href={withView('/', viewAs)} className="mark">
         DealerPulse
       </Link>
+      {commands ? <CommandPalette items={commands} /> : null}
       {subtitle ? <span className="org marker-hide-sm">{subtitle}</span> : null}
 
       <nav className="nav" aria-label="Main">
@@ -201,14 +211,46 @@ export function TopBar({
           </div>
         </details>
       ) : null}
-      <span className="marker">
-        <i className="dot" aria-hidden="true" />
-        <span className="marker-hide-sm">Data current as of {DATA_CURRENT_AS_OF}</span>
-        <span className="marker-date-sm" aria-hidden="true">
-          {DATA_CURRENT_AS_OF}
-        </span>
-        <span className="sr-only">Data current as of {DATA_CURRENT_AS_OF}</span>
-      </span>
+      {/*
+        The freshness contract. "Data current as of" is a claim, and a reader is
+        entitled to know exactly what it means here: the clock is pinned to the
+        dataset's last activity, not to now, so the same URL gives the same
+        numbers today and in a year. Saying that out loud is the difference
+        between a fixture and a dashboard that is quietly stale.
+      */}
+      <details className="menu" data-filter-menu="">
+        <summary className="marker marker-btn" aria-label={`Data current as of ${DATA_CURRENT_AS_OF} — what this means`}>
+          <i className="dot" aria-hidden="true" />
+          <span className="marker-hide-sm">Data current as of {DATA_CURRENT_AS_OF}</span>
+          <span className="marker-date-sm" aria-hidden="true">
+            {DATA_CURRENT_AS_OF}
+          </span>
+        </summary>
+        <div className="menu-pop to-right" style={{ minWidth: 300, padding: 'var(--s3)' }}>
+          <p className="t-label" style={{ marginBottom: 8 }}>
+            What “current as of” means
+          </p>
+          <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 12px' }}>
+            <dt className="t-small">Latest activity in the data</dt>
+            <dd className="num t-small" style={{ margin: 0, textAlign: 'right' }}>
+              {DATA_CURRENT_AS_OF}
+            </dd>
+            <dt className="t-small">“Now”, for every age and overdue figure</dt>
+            <dd className="num t-small" style={{ margin: 0, textAlign: 'right' }}>
+              pinned there
+            </dd>
+            <dt className="t-small">Refreshes on its own</dt>
+            <dd className="num t-small" style={{ margin: 0, textAlign: 'right' }}>
+              no
+            </dd>
+          </dl>
+          <p className="t-micro" style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--rule)' }}>
+            Every duration on this screen is measured from that instant rather than from the wall clock, so a
+            lead that is 195 days idle stays 195 days idle. Nothing here polls a live system; the figures
+            change only when the underlying export does.
+          </p>
+        </div>
+      </details>
       <ThemeToggle />
       <details className="menu">
         <summary className="marker-btn" aria-label={`${reconciledCount} records reconciled — data quality`}>
@@ -223,7 +265,7 @@ export function TopBar({
           <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 12px' }}>
             <dt className="t-small">Leads loaded</dt>
             <dd className="num t-small" style={{ margin: 0, textAlign: 'right' }}>
-              510
+              {totalLeads === undefined ? '—' : formatNumber(totalLeads)}
             </dd>
             <dt className="t-small">Status missing from history</dt>
             <dd className="num t-small" style={{ margin: 0, textAlign: 'right' }}>
@@ -313,6 +355,24 @@ function FilterMenu({ group }: { group: FilterGroup }) {
 }
 
 /** The global filter bar. `basePath` keeps filters pointed at the current screen. */
+/**
+ * A default name for a saved view, assembled from what is actually selected.
+ * "Lakeside · Q4 2025 · Leads" beats "Saved view 3" when there are eight of
+ * them in a list six months later.
+ */
+function viewName(state: FilterState, basePath: string, branches: readonly Branch[]): string {
+  const screen =
+    basePath === '/' ? 'Overview'
+    : basePath === '/leads' ? 'Leads'
+    : basePath === '/actions' ? 'Act now'
+    : basePath === '/models' ? 'Vehicles'
+    : basePath.replace(/^\//, '');
+  const parts = describeFilters(state, (id) =>
+    (branches.find((b) => b.id === id)?.name ?? id).replace(' Toyota', ''),
+  );
+  return parts.length > 0 ? `${parts.join(' · ')} · ${screen}` : screen;
+}
+
 export function FilterBar({
   state,
   branches,
@@ -523,6 +583,12 @@ export function FilterBar({
       </details>
 
       <span className="sp" />
+      {/* The filters already live in the URL, so a saved view is just a name
+          and a query string — no second source of truth to drift. */}
+      <SavedViews
+        currentHref={`${basePath}${toQueryString(state)}`}
+        suggestedName={viewName(state, basePath, branches)}
+      />
       {isFiltered(state) ? (
         <Link href={basePath} className="btn btn-quiet btn-sm fb-clear">
           Clear all

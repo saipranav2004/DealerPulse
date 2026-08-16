@@ -18,6 +18,7 @@ import { computeSources } from '@/lib/analytics/sources';
 import { computeTargets } from '@/lib/analytics/targets';
 import { computeVerdictOutcome } from '@/lib/analytics/verdict';
 import { getDataset } from '@/lib/data';
+import { buildCommandIndex } from '@/lib/command-index';
 import { selectLeads } from '@/lib/filters';
 import {
   hrefWithFilters,
@@ -77,7 +78,19 @@ export default async function OverviewPage({
   const kpis = computeKpiSet(dataset, filters);
   const kpiTrend = computeKpis(dataset, filters);
   const branches = computeBranches(dataset, filters);
-  const { verdict, abstention } = computeVerdictOutcome(dataset, filters);
+  /*
+   * The verdict is the one panel that must see past the role's scope. Every
+   * other figure on this screen is the manager's own branch, but a comparison
+   * needs peers to compare against — computed on the state *before* the role
+   * narrowed it, then pointed at the branch the reader actually runs.
+   */
+  const verdictFilters = viewAs ? toFilters(baseState) : filters;
+  const { verdict, abstention } = computeVerdictOutcome(
+    dataset,
+    verdictFilters,
+    viewAs ? { focusBranchId: viewAs } : {},
+  );
+  const verdictBranches = viewAs ? computeBranches(dataset, verdictFilters) : branches;
   const actions = computeActionCenter(dataset, filters);
   const loss = computeLossAnalysis(dataset, filters);
   const sources = computeSources(dataset, filters);
@@ -112,6 +125,7 @@ export default async function OverviewPage({
     <div className="app">
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
+        commands={buildCommandIndex(dataset, state)}
         viewAs={viewAs}
         branches={dataset.branches}
         subtitle={`Toyota Group · ${dataset.branches.length} branches`}
@@ -133,13 +147,13 @@ export default async function OverviewPage({
           <EmptyByFilter state={state} branches={dataset.branches} basePath="/" />
         ) : (
           <>
-            <VerdictBand verdict={verdict} abstention={abstention} branches={branches} filters={state} />
+            <VerdictBand verdict={verdict} abstention={abstention} branches={verdictBranches} filters={state} />
 
             <VitalSigns
               kpis={kpis}
               revenueSeries={activity.map((point) => point.revenue)}
               neverContactedSeries={cohorts.cohorts.map((point) => point.neverContacted)}
-              branchWinRates={branches.branches.map((branch) => ({
+              branchWinRates={verdictBranches.branches.map((branch) => ({
                 id: branch.branchId,
                 value: branch.winRate.value,
               }))}
@@ -151,7 +165,7 @@ export default async function OverviewPage({
 
             <div className="grid">
               <BranchComparison
-                branches={branches}
+                branches={verdictBranches}
                 focusBranchId={verdict?.branchId ?? null}
                 filters={state}
               />

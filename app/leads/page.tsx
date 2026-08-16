@@ -11,6 +11,7 @@ import { buildLeadTable, type LeadSortKey, type LeadStatusFilter } from '@/lib/a
 import { computeActionCenter } from '@/lib/analytics/actionCenter';
 import { computeLeadTimeline } from '@/lib/analytics/leadTimeline';
 import { getDataset } from '@/lib/data';
+import { buildCommandIndex } from '@/lib/command-index';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import {
   SOURCE_LABELS,
@@ -124,6 +125,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     <div className="app">
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
+        commands={buildCommandIndex(dataset, state)}
+        totalLeads={dataset.leads.length}
         viewAs={viewAs}
         branches={dataset.branches}
         current="leads"

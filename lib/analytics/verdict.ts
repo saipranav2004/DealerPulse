@@ -102,6 +102,11 @@ export interface VerdictAbstention {
   /** Branches at or above it. */
   ratedBranches: number;
   floor: number;
+  /**
+   * Set only in role mode. An abstention phrased for the group ("no branch is
+   * behind") is the wrong sentence for a manager who asked about one branch.
+   */
+  focusBranchName?: string;
 }
 
 export type VerdictOutcome =
@@ -118,7 +123,23 @@ export function computeVerdict(dataset: Dataset, filters: Filters = {}): Verdict
   return computeVerdictOutcome(dataset, filters).verdict;
 }
 
-export function computeVerdictOutcome(dataset: Dataset, filters: Filters = {}): VerdictOutcome {
+export interface VerdictOptions {
+  /**
+   * Diagnose this branch rather than whichever is weakest.
+   *
+   * Role mode needs it: a branch manager already knows which branch they run,
+   * and the group-wide question "who is worst" is not theirs to ask. Without
+   * it their overview scoped to one branch, found nothing to compare it
+   * against, and told them to clear a filter the role does not let them clear.
+   */
+  focusBranchId?: string;
+}
+
+export function computeVerdictOutcome(
+  dataset: Dataset,
+  filters: Filters = {},
+  options: VerdictOptions = {},
+): VerdictOutcome {
   const { branches, benchmark } = computeBranches(dataset, filters);
   const groupWinRate = benchmark.winRate.value;
 
@@ -129,9 +150,18 @@ export function computeVerdictOutcome(dataset: Dataset, filters: Filters = {}): 
     (branch) => branch.winRate.value !== null && branch.leads >= MIN_VERDICT_DENOMINATOR,
   );
   const belowFloor = branches.filter((branch) => branch.leads < MIN_VERDICT_DENOMINATOR).length;
+  const focusName = options.focusBranchId
+    ? branches.find((branch) => branch.branchId === options.focusBranchId)?.name
+    : undefined;
   const abstain = (reason: VerdictAbstention['reason']): VerdictOutcome => ({
     verdict: null,
-    abstention: { reason, belowFloor, ratedBranches: eligible.length, floor: MIN_VERDICT_DENOMINATOR },
+    abstention: {
+      reason,
+      belowFloor,
+      ratedBranches: eligible.length,
+      floor: MIN_VERDICT_DENOMINATOR,
+      focusBranchName: focusName,
+    },
   });
 
   if (groupWinRate === null) return abstain('insufficient-sample');
@@ -145,9 +175,14 @@ export function computeVerdictOutcome(dataset: Dataset, filters: Filters = {}): 
   if (eligible.length < 2) return abstain('not-enough-branches');
   if (rateable.length !== eligible.length) return abstain('insufficient-sample');
 
-  const worst = eligible.reduce((low, branch) =>
-    (branch.winRate.value ?? 1) < (low.winRate.value ?? 1) ? branch : low,
-  );
+  const worst = options.focusBranchId
+    ? eligible.find((branch) => branch.branchId === options.focusBranchId)
+    : eligible.reduce((low, branch) =>
+        (branch.winRate.value ?? 1) < (low.winRate.value ?? 1) ? branch : low,
+      );
+  // A named branch that is not in the eligible set is below the verdict floor,
+  // which is the same abstention as any other under-sampled branch.
+  if (!worst) return abstain('insufficient-sample');
   const worstRate = worst.winRate.value;
   if (worstRate === null || worstRate >= groupWinRate) return abstain('no-branch-behind');
 

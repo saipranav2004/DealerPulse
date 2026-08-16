@@ -19,6 +19,7 @@ import { computeLossAnalysis } from '@/lib/analytics/lossAnalysis';
 import { computeReps, groupMedianHoursToFirstContact } from '@/lib/analytics/reps';
 import { computeTargets } from '@/lib/analytics/targets';
 import { getDataset } from '@/lib/data';
+import { buildCommandIndex } from '@/lib/command-index';
 import { selectLeads } from '@/lib/filters';
 import {
   hrefWithFilters,
@@ -118,6 +119,8 @@ export default async function BranchPage({
     <div className="app">
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
+        commands={buildCommandIndex(dataset, state)}
+        totalLeads={dataset.leads.length}
         filters={state}
         viewAs={viewAs}
         branches={dataset.branches}

@@ -15,6 +15,7 @@ import { computeLeadTimeline } from '@/lib/analytics/leadTimeline';
 import { computeLossAnalysis } from '@/lib/analytics/lossAnalysis';
 import { computeReps, groupMedianHoursToFirstContact } from '@/lib/analytics/reps';
 import { NOW, getDataset } from '@/lib/data';
+import { buildCommandIndex } from '@/lib/command-index';
 import { selectLeads } from '@/lib/filters';
 import { isOpen } from '@/lib/lead';
 import { median, wholeDaysBetween } from '@/lib/stats';
@@ -113,6 +114,8 @@ export default async function RepPage({
     <div className="app">
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
+        commands={buildCommandIndex(dataset, state)}
+        totalLeads={dataset.leads.length}
         filters={state}
         viewAs={viewAs}
         branches={dataset.branches}

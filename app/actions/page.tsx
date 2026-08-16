@@ -12,6 +12,7 @@ import { computeLeadTimeline } from '@/lib/analytics/leadTimeline';
 import { computeWhatIf } from '@/lib/analytics/whatIf';
 import { computeVerdict } from '@/lib/analytics/verdict';
 import { getDataset } from '@/lib/data';
+import { buildCommandIndex } from '@/lib/command-index';
 import { selectLeads } from '@/lib/filters';
 import { counted, formatCurrency, formatNumber } from '@/lib/format';
 import {
@@ -139,6 +140,8 @@ export default async function ActionCenterPage({
     <div className="app">
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
+        commands={buildCommandIndex(dataset, state)}
+        totalLeads={dataset.leads.length}
         viewAs={viewAs}
         branches={dataset.branches}
         subtitle="Action Center"

@@ -62,12 +62,17 @@ export function VerdictBand({
     const reason = abstention?.reason ?? 'insufficient-sample';
     const belowFloor = abstention?.belowFloor ?? 0;
     const total = branches.branches.length;
+    const focus = abstention?.focusBranchName?.replace(' Toyota', '');
     const headline =
       reason === 'no-branch-behind'
-        ? 'No branch is materially behind the group on this selection.'
+        ? focus
+          ? `${focus} is at or above the group on this selection.`
+          : 'No branch is materially behind the group on this selection.'
         : reason === 'not-enough-branches'
           ? 'Only one branch is in view, so there is nothing to compare it against.'
-          : 'Not enough leads in this window to name a branch.';
+          : focus
+            ? `Not enough leads in this window to diagnose ${focus}.`
+            : 'Not enough leads in this window to name a branch.';
     return (
       <section className="verdict">
         <p className="t-eyebrow" style={{ marginBottom: 12 }}>
@@ -76,10 +81,18 @@ export function VerdictBand({
         <p className="t-verdict verdict-sentence">{headline}</p>
         <p className="verdict-sub">
           {reason === 'no-branch-behind' ? (
-            <>
-              Every branch clears the sample floor here and none is meaningfully behind the group. That is a
-              genuine result, not a gap in the data.
-            </>
+            focus ? (
+              <>
+                Every branch clears the sample floor here, and {focus} converts at or above the group rate.
+                That is a genuine result, not a gap in the data — the comparison below shows where it sits
+                against the other branches.
+              </>
+            ) : (
+              <>
+                Every branch clears the sample floor here and none is meaningfully behind the group. That is a
+                genuine result, not a gap in the data.
+              </>
+            )
           ) : reason === 'not-enough-branches' ? (
             <>
               This finding names the branch furthest below its peers, which needs at least two branches with
