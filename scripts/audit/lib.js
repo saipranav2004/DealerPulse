@@ -56,7 +56,21 @@ function findChromium() {
 
 function launch() {
   const executablePath = findChromium();
-  return chromium.launch(executablePath ? { executablePath } : {});
+  const options = executablePath ? { executablePath } : {};
+
+  /*
+   * Auditing a deployed URL is a documented use of this suite, and plenty of
+   * environments only reach the internet through a proxy. Chromium does not
+   * read the proxy environment variables the way curl and node do, so pass
+   * them through explicitly. Localhost is excluded so the normal local run is
+   * unaffected.
+   */
+  const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
+  if (proxy && !/localhost|127\.0\.0\.1/.test(BASE)) {
+    options.proxy = { server: proxy, bypass: 'localhost,127.0.0.1' };
+  }
+
+  return chromium.launch(options);
 }
 
 /** Widths the product is designed against: phone, tablet, laptop, desktop. */
