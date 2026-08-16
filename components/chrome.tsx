@@ -9,7 +9,6 @@
 
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { DensityToggle } from '@/components/density-toggle';
 import { Shortcuts } from '@/components/shortcuts';
 import { CommandPalette, type CommandItem } from '@/components/command-palette';
 import { SavedViews } from '@/components/saved-views';
@@ -259,7 +258,6 @@ export function TopBar({
           </p>
         </div>
       </details>
-      <DensityToggle />
       <ThemeToggle />
       <Shortcuts />
       <details className="menu" data-filter-menu="">

@@ -1434,42 +1434,6 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
 }
 
 /* ==========================================================================
-   Row density
-
-   One attribute on the document element, so nothing else has to know the
-   setting exists. Only spacing changes — never a font size, never a colour,
-   never which columns are shown: compact must stay the same product, and a
-   reader must not have to check which mode they are in to trust a number.
-   ========================================================================== */
-:root[data-density="compact"] {
-  --s3: 8px;
-  --s4: 11px;
-  --s5: 14px;
-}
-:root[data-density="compact"] .tbl td,
-:root[data-density="compact"] .tbl th { padding-top: 3px; padding-bottom: 3px; }
-:root[data-density="compact"] .q-row { padding-top: 6px; padding-bottom: 6px; }
-:root[data-density="compact"] .panel-hd { padding-top: 9px; padding-bottom: 9px; }
-:root[data-density="compact"] .dp-cell { padding-top: 5px; padding-bottom: 5px; }
-/*
-  A row here is two lines of text, so trimming cell padding alone barely moved
-  it — 49px to 49px on the first attempt. The second line is what carries the
-  height, so compact tightens the leading of the secondary line and closes the
-  gap above it. It still renders: compact changes spacing, never which facts
-  are shown, because a reader must not have to check which mode they are in
-  before trusting what they can see.
-*/
-:root[data-density="compact"] .tbl .t-micro { line-height: 1.25; margin-top: 0; }
-:root[data-density="compact"] .tbl .unfold { margin-top: 0; }
-:root[data-density="compact"] .tbl .dp-name { padding: 1px 0; margin: -1px 0; }
-/* The 24px pointer floor and the 44px fingertip floor outrank any density
-   setting; compact may not shrink a target below them. */
-:root[data-density="compact"] .tbl .dp-name { min-height: 24px; }
-@media (max-width: 1023px) {
-  :root[data-density="compact"] .tbl .dp-name { padding: 13px 0; margin: 0; }
-}
-
-/* ==========================================================================
    Shortcut sheet
    ========================================================================== */
 .sc { max-height: 74vh; }

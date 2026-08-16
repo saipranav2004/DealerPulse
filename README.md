@@ -21,6 +21,37 @@ npm run build && npm start   # production build
 
 Requires Node 18.18+ (Node 22 recommended).
 
+## Checks
+
+```bash
+npm run verify     # types, lint, and the 33 baseline assertions
+npm run audit      # browser checks: layout, contrast, targets, structure
+```
+
+`verify` recomputes every headline figure straight from the raw JSON and
+compares it against what the analytics layer produces, so a change that moves a
+number fails immediately.
+
+`audit` builds the app, serves it, and drives a real browser over 32 views at
+four widths in both themes. It checks horizontal overflow, hydration errors,
+invalid nesting, table column alignment, WCAG target sizes, measured colour
+contrast, SVG paint order, text integrity and page structure.
+
+Playwright is deliberately **not** a dependency, because its install downloads
+around 150MB of browsers that a production build never needs. Install it only
+when you want to run the audit:
+
+```bash
+npm i -D playwright && npx playwright install chromium
+npm run audit
+```
+
+Point the audit at a deployed URL instead of building locally:
+
+```bash
+AUDIT_URL=https://your-deployment.vercel.app npm run audit -- --no-build
+```
+
 ## Deploy to Vercel
 
 Zero configuration. Import the repository at
@@ -40,6 +71,11 @@ services — the dataset is a static JSON file imported at build time.
 | `/rep/[id]` | Rep scorecard, with a stated finding for zero-lead managers |
 | `/method` | How the verdict and every threshold is calculated |
 
+Press <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>K</kbd> anywhere to jump to any
+branch, person, vehicle or screen, and <kbd>?</kbd> for the shortcut list.
+Active filters appear as chips that can be removed one at a time, views can be
+saved per browser, and every screen has a print layout for a board pack.
+
 Add `?as=<branchId>` (for example `/branch/B3?as=B3`) to view as that branch's
 manager: navigation retargets to their branch and every queue is scoped to it.
 
@@ -54,6 +90,8 @@ toggle in the top bar.
 
 ```
 app/            routes (server components) + design tokens in globals.css
+scripts/audit/  browser checks run by `npm run audit`
+tests/          the frozen baseline suite run by `npm test`
 components/     presentational only — no business logic
 lib/analytics/  every metric, as pure typed functions
 lib/data.ts     loader: parses dates once, reconciles, builds indexes

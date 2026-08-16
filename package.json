@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "audit": "node scripts/audit/run.js",
+    "verify": "npm run typecheck && npm run lint && npm test"
   },
   "dependencies": {
     "next": "15.5.23",

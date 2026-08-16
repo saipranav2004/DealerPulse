@@ -1,361 +1,202 @@
-# DECISIONS.md
+# Notes on how I built DealerPulse
 
-## What I built, and why
+## The short version
 
-**A product that states a conclusion, then shows its working.**
+You gave me a file with 510 leads across five branches, thirty sales people and
+seven cars. I could have turned that into a wall of charts. I did not, because a
+wall of charts makes you do the work.
 
-The brief says the user is a dealership CEO. So I built for one specific
-behaviour: he opens this for ninety seconds between meetings, and what he needs
-to leave with is a sentence he can repeat to a branch manager on a phone call.
+Instead the first thing you see is a sentence. It says what is wrong, who it is
+about, and roughly what it costs you. Everything under that sentence is there so
+you can check it.
 
-That ruled out the obvious shape — six KPI tiles and a chart grid — because it
-makes the reader assemble the finding themselves. Instead the screen opens with
-a **verdict**: one generated sentence, in large type, naming the problem, the
-money, and one action.
+Here is the sentence the data actually produced.
 
-> Lakeside converts 7.6% of its leads where the group converts 31.4% — and the
-> break is at the first step: 42% of Lakeside leads are never called.
+> Lakeside converts 7.6 percent of its leads where the group converts 31.4
+> percent, and the break is at the very first step. 42 percent of Lakeside leads
+> are never called.
 
-Everything below it exists so a sceptical reader can check that sentence in two
-clicks. The verdict is **derived, not written**: the code finds the branch
-furthest below the group, then finds the funnel step where it loses the most
-leads *relative to what its peers would have converted*. Change the filters and
-the sentence recomputes.
+Nobody typed that. The code looks at every branch, finds the one furthest behind
+its peers, walks its funnel step by step, works out which step loses the most
+leads, and writes the sentence from what it finds. If you upload different data
+next month it will write a different sentence, or it will tell you there is
+nothing worth saying.
 
-### The screens
+## Who I imagined using it
 
-| Screen | Job |
-|---|---|
-| **Overview** | The verdict, five vital signs, the revenue trend, the forecast, and the evidence for the claim |
-| **Act now** (Action Center) | A prioritised work queue. If it is cleared, the business improves |
-| **Leads** | Every one of the 510 rows behind every aggregate — searchable, sortable, exportable |
-| **Vehicles** | Where attention goes versus where the money is |
-| **Branch** | Diagnosis. A funnel drawn twice — actual, and the same leads at peer rates |
-| **Rep** | A scorecard usable in a 1:1 without being a firing document |
-| **Lead** | The full journey, with every gap measured against its median |
+I kept picturing a busy person opening this on a phone between two meetings. He
+has about ninety seconds. He wants to walk out with one thing he can say to a
+branch manager on a call.
 
-The four screens a CEO uses sit in a persistent top navigation, with a live
-count on **Act now**. Before that existed, the Action Center — the screen this
-product argues is the most valuable — was reachable only by scrolling to the
-bottom of the Overview. That was the single worst usability defect in the build,
-and it was invisible to me until I tried to use the thing rather than look at it.
+That single idea decided most of the design.
 
-## Key product decisions and tradeoffs
+It decided that the finding goes at the top in big type instead of at the bottom
+in a summary box. It decided that the money is shown right next to the problem
+rather than three clicks away. It decided that a chart only earns its place if it
+answers a question the finding creates.
 
-**The headline states two figures, because merging them was a 10× lie.** Closing
-Lakeside's gap to peer rates *across the whole funnel* is worth ₹3.95–5.52 Cr.
-Fixing first contact *alone*, holding the branch's own downstream conversion, is
-worth ₹0.40–0.56 Cr. An earlier version of this product printed the first number
-in the sentence about the second — an external audit caught it, and it was the
-single worst error here: the one sentence a CEO actually reads was the one place
-the discipline broke. Both numbers now come from `computeWhatIf`, the same
-function the simulator calls, so the two screens cannot drift apart again.
+It also decided what I left out. There is no vanity dashboard, no gauge, no
+speedometer, no chart that exists to look busy.
 
-**Recoverable value is a range, not a point.** Pricing recovered leads at the
-branch's *delivered* mix (₹17.78 L) gives ₹3.95 Cr; pricing them at the mean
-across all its leads (₹24.83 L) gives ₹5.52 Cr. Both bases are defensible —
-recovered leads come from the general pool, but this branch has only ever
-delivered the cheaper end of it. Quoting only the higher one was silently
-picking the flattering base, which is exactly what every other number here is
-guarded against.
+## The money is a range, and I want you to know why
 
-**Rank funnel steps by leads lost, not by percentage-point gap.** Lakeside's
-widest gap is `test_drive → negotiation` at −29 points. But that step operates on
-27 leads, while the first step operates on 79. Ranking by points would have
-pointed the CEO at the wrong problem. Ranking by *leads lost relative to peers*
-puts first contact at the top, where it belongs — 17 leads more than peers would
-have lost.
+Most dashboards give you one confident number. I give you two.
 
-**Red is reserved for money at risk, and nothing else.** Group attainment is
-12.4%. If red meant "below target", every branch would be red on every screen and
-the colour would stop meaning anything within one session. It is spent only on
-the ₹8.59 Cr of orders paid for and never delivered.
+Take the 8.59 crore sitting in the money at risk panel. That is 38 orders where
+somebody has already paid and the car never left the lot. The oldest one has been
+sitting for 195 days. Normal is 17 days.
 
-**Targets are shown, then disarmed.** The seven-month target is 1,426 units and
-only 510 leads exist. Even if every single lead converted the group could deliver
-510 — the target is 2.8× total lead volume and is arithmetically unreachable.
-Hiding that would be dishonest; leading with the percentage would train the CEO
-to ignore a vital sign. So the panel leads with the planning defect, marks the
-ceiling with a black tick, and drives no health signal anywhere in the product.
+Now, how much of that will you actually recover? Honestly, nobody knows. If your
+team chases every one of them, most will complete. If nobody chases them, many
+will not. So instead of pretending, the product shows a low figure and a high
+figure and tells you what separates them.
 
-**"Never called: 119" is labelled with its split.** Sitting beside "Money at
-risk", a bare count reads as a work queue. It is not one: 114 of those leads are
-already lost and only 5 are still callable. The card now says so. Likewise "win
-rate" became "leads that became a sale", with the denominator printed under it —
-a win rate hides what it is a rate *of*.
+The same thinking runs through the whole product. Where a number depends on an
+assumption, the assumption is on screen, not buried in a footnote.
 
-**There is no separate "overdue" queue, and the reason is in the data.** 31 open
-leads are past the close date their own rep predicted, worth ₹6.89 Cr — an
-obvious queue, until you check the overlap: 30 of the 31 are stalled orders
-already sitting in a more urgent queue. A standalone tab would have been the
-same rows a second time. So the breach became an *attribute*: the stalled queue
-now reports "30 of 38 past the promised date · ₹6.80 Cr already promised to a
-customer", each row states how many days late it is against that promise, and
-the single non-stalled lead joins the at-risk queue.
+## Sometimes it refuses to answer
 
-**The trend chip is month-on-month, not first-to-last.** "+276.4% since July" was
-trough-to-peak on a six-point series — chosen by whichever month happened to be
-lowest, and the loudest element on the card. It now reads "+54.6% vs last month",
-with the honest context underneath: December is 2.6× the median of the earlier
-months.
+This is the decision I am most pleased with.
 
-**The cold-leads queue ships with one row, not thirty-five.** Thresholds are
-derived from each stage's actual dwell median rather than round numbers. A flat
-seven-day rule surfaces 35 open leads — but 32 are stalled orders already in
-their own queue, and two more are still inside the normal window for their stage.
-It would have been easy to ship "35" and look busier. A queue that inflates
-itself is one people stop opening.
+If a branch has too few leads to judge fairly, the product will not print a
+percentage for it. It shows a dash instead. If too many branches are too small to
+judge, it will not name a worst branch at all. It says so plainly and tells you to
+widen the date range.
 
-**The what-if leads with its least flattering number.** Raising Lakeside's
-first-contact rate to the group's 80%, holding its own downstream conversion,
-yields **+2 deliveries and ₹0.56 Cr**. Applying peer conversion downstream too
-yields **+22 and ₹5.5 Cr**. The second needs the whole funnel fixed, not just the
-phone calls, so it sits in the assumption block clearly labelled. A simulator
-that shows its best case first is a sales tool, not an instrument.
+A rate on four leads looks exactly like a rate on four hundred once you print it
+as a percentage. That is how dashboards mislead people without lying. So there is
+a floor. Ten leads before it will show a rate, thirty before it will accuse a
+branch of being the problem. A branch too small to judge is also too small to let
+off the hook, which is why the whole finding is withheld rather than pointed at
+whoever happens to be big enough.
 
-**The forecast reports a range, and says why it is a range.** Weighting the 62
-open leads by how each stage has actually converted in this period gives ₹9.88 Cr
-expected. But 38 of those leads are orders already paid for and never delivered,
-worth ₹8.59 Cr — 74% of the total. Treating them as likely to complete produces
-the upper figure; excluding them entirely produces ₹2.94 Cr. Both are shown, with
-the reason stated above the number. A single point estimate here would have been
-a lie dressed as precision. As a coherence check: P(deliver | new) works out to
-0.3137, which is exactly the company's 160/510 win rate.
+## Time is frozen on purpose
 
-**Movement, not only level.** Every other module answers "how much"; a reader
-could not tell a business that is recovering from one that is sliding. A
-"What changed last month" strip compares the last complete month to the one
-before it across four measures, and states how many months of delivery work the
-open pipeline represents at the trailing median pace. A *median*, not a mean —
-December is nearly three times the median month, and a mean would let that one
-month set the expectation for every future one.
+Your data ends on 31 December 2025. So the product treats that date as today.
 
-**A branch manager gets a different first screen.** The brief names two
-audiences. A manager landing on a group-wide indictment of somebody else's branch
-has been shown something they cannot act on. `?as=<branchId>` retargets
-navigation to their own branch, scopes every queue to it, and is authoritative
-rather than decorative — the scope applies even if the branch parameter is
-missing from the URL.
+This matters more than it sounds. If I used the real clock, then every age, every
+overdue flag and every idle counter would drift a little further from the truth
+every day, and a lead that is 195 days late today would quietly become 400 days
+late by next summer. Freezing the clock means the same link shows the same numbers
+whenever you open it, which is what you need if you are going to share one.
 
-**A branch filter on a branch route was a trap.** `/branch/B3?branch=B1` asked
-for B1's leads inside B3, rendered "0 of 510 leads", and the recovery link
-carried the conflict forward — the escape hatch didn't escape. The branch axis is
-now discarded on arrival at any route already scoped to a branch, and the control
-in its place *navigates* to the branch instead of filtering within it.
+There is a small dot in the top bar that says when the data is current. Click it
+and it explains exactly this. I would rather say it out loud than let somebody
+assume the numbers are live.
 
-**Targets read as a planning defect, not a low score.** 12.4% attainment invites
-the conclusion that the group is failing. The real finding is that the target is
-2.8× total lead volume and unbuildable at any performance level. The defect now
-leads the panel and the percentage follows it.
+## Two ways to read a date range, and they are both right
 
-**Filters live in the URL.** They survive navigation into a drill-down, they are
-shareable as a link, and they let the server compute the page — so the 620 KB
-dataset never reaches the browser. Page JavaScript is **1.15 kB** on the Overview
-and 4.78 kB on the Action Center, the only screen with real client state.
+This one took me a while to get right, and I think it is the most useful thing in
+the product.
 
-**Server components by default.** Only three client components exist, each for
-behaviour static markup cannot provide: the lead drawer (Escape/backdrop), queue
-selection, and the what-if slider. Filter menus are native `<details>` elements
-containing links, so filtering works with no client JavaScript at all.
+Ask for the last quarter and there are genuinely two answers.
 
-**Rates below n=10 are withheld.** Two of four leads converting is not 50%. Every
-rate in the product returns `{ value: null, reason: 'insufficient_data' }` below
-the threshold and renders as an em dash. This is enforced in the analytics layer,
-not in components — a rule I had to re-apply after review caught a component
-dividing two counts itself and rendering "100%" off a single lost lead.
+One answer is what happened in those three months. Cars handed over, money
+collected, work done. That is the number a CEO usually means.
 
-**Queue actions are honest about persistence.** They apply optimistically and
-save to `localStorage`, and an amber strip says exactly that: there is no
-write-back to a dealer management system. Pretending otherwise is how a tool
-gets switched off after the first Monday.
+The other answer is how the leads you took in those three months converted. Some
+of them will not deliver until March. That is the number you need if you are
+judging whether your intake is any good.
 
-## Interesting patterns in the data
+Most dashboards silently pick one and never tell you. This one lets you switch
+between them with a single button, and the label always says which one you are
+looking at. On the same quarter the two answers were 24.81 crore and 17.55 crore.
+Both correct. Very different conversations.
 
-**Lakeside's failure is systemic, not individual.** Its five sales officers hold
-the five lowest win rates in the company — and the sixth-placed rep sits 9.7
-points clear of the best of them. Five people do not independently arrive at the
-bottom of a 25-person distribution. The product proves this with a distribution
-strip rather than asserting it.
+## The part that tells you what to do today
 
-**The branch manager holds zero leads.** Rahul Patel is assigned no pipeline —
-and so is every other branch manager. It is a structural choice, but it means
-nobody in the branch carries a book against which a manager's own follow-up
-discipline could be measured. Surfaced as a finding on the branch header.
+The overview tells you what is wrong. The Act now screen tells you what to do
+about it, in order.
 
-**One order was paid for 195 days ago and never delivered.** Lead L0022, Omkar
-Varma, ₹50.5 L Camry. The salesperson's own note reads *"Full payment received."*
-Normal order-to-delivery is 17 days. That single record is the strongest argument
-in the dataset for the Action Center existing, and the timeline deforms around it
-rather than flagging it with a badge.
+It is a work queue. Paid orders with no delivery record sit at the top because
+that is money you have already taken. Under that are leads going cold, ranked by
+how long they have been quiet against what is normal for that stage. The
+thresholds come from your own data rather than from a round number I made up.
+Seven days sounds sensible until you notice that seven days at one stage is
+perfectly normal and at another stage it means the deal is dead.
 
-**68% of lost deals die before anyone sits in a car.** 114 of 288 were never
-contacted at all. This is a response problem, not a closing problem — which is
-what makes "42% never called" the right headline rather than a conversion-skills
-narrative.
+You can tick items off, and it remembers. You can snooze one and it comes back.
+There is an undo. Small things, but a queue you cannot mark off is not a queue,
+it is a list.
 
-**Social media brings the most valuable buyer and converts them worst.** Highest
-average deal value at ₹27.17 L, lowest win rate at 13.9%. Either the leads are
-unqualified or nobody is calling them back — and given the finding above, the
-second is worth checking first.
+## It works on a phone properly
 
-**The car people ask about is not the car that pays.** Glanza draws 130 leads and
-earns ₹3.97 Cr. Fortuner draws 94 and earns ₹12.61 Cr — 3.2× the revenue on 36
-fewer enquiries. The top three vehicles produce 65% of delivered revenue. This is
-the largest dimension in the dataset that no summary metric touches, which is why
-it got its own screen.
+Not shrunk. Rebuilt.
 
-**Rep tenure explains nothing.** I checked whether hire date predicted win rate
-before writing the Lakeside conclusion, because "the branch hired badly" would
-have been a competing explanation. It does not correlate. Reporting a non-finding
-matters here: it is what rules out the alternative story.
+On a desktop a table is a table because you are comparing rows. On a phone a
+table is a trap, because eight columns in 393 pixels means either the header
+scrolls away or the number does, and then you are reading a figure with no idea
+what it measures.
 
-**Speed is not Lakeside's problem.** It is 1–2 days slower than the group at
-every stage — never dramatically. That is what licenses the conclusion that the
-problem is *starting*, not *moving*.
+So below 768 pixels every table becomes a stack of cards. Each card puts the
+name and the headline number on one line, then every other figure carries its own
+label. The label is the same word as the column header, taken from the same place
+in the code, so the two can never drift apart.
 
-**Two data defects, admitted rather than hidden.** 14 lead records have a status
-that never appears in their own history; the loader reconstructs the terminal
-event and every screen carries an inspectable "14 records reconciled" marker. And
-one status note contains an unrendered `{}` template placeholder, which the lead
-drawer highlights rather than printing as if intentional.
+Tablet gets its own treatment too. Not the phone layout stretched, and not the
+desktop layout squeezed.
 
-**December is not a collapse.** 75 leads created, 1 delivered. Against a 37-day
-median cycle, a December lead cannot have delivered yet. Cohort series carry an
-`isMature` flag so that shape is never read as performance.
+## Things I decided not to build
 
-## What I would build next
+I want to be straight about this, because a list of everything I added is not
+very honest on its own.
 
-1. **Write-back.** The queue's actions are the product's whole point and they
-   currently stop at the browser. Assignment, snooze and contact need to reach the
-   DMS before this is worth opening twice.
-2. **Rep coaching view.** The rep screen diagnoses. It does not yet say what to do
-   on Monday, which is what a branch manager actually needs from it.
-3. **A real time-range picker.** Presets cover the dataset, but a custom range and
-   period-over-period comparison across arbitrary windows is the obvious next step.
-4. **Anomaly detection on intake.** Never-contacted counts rise every month from
-   11 in June to 23 in November. Nobody was watching that line; something should
-   be.
-5. **Scheduled digests.** The verdict is a sentence. A sentence can be emailed on
-   Monday morning, which is a better delivery mechanism than hoping the CEO opens
-   a tab.
+I did not build a column picker for the lead table, because the table already
+drops the right columns by itself at each screen size and a control that mostly
+repeats that is just another button.
 
-## Trade-offs I accepted
+I did not build a guided tour. If the product needs a tour to explain a single
+sentence in large type, the sentence is not doing its job.
 
-- **No charting library.** Every visual is hand-built SVG or CSS against the
-  design tokens. It cost time but kept the palette, density and dark mode
-  consistent — and kept the bundle small enough to state in bytes.
-- **The delivery-delays queue is the weakest of the three** and I would cut it
-  before shipping. All 47 rows are already-delivered cars, so no row has a live
-  next step. It is analysis wearing a queue's clothing. It stays for now because
-  the delay causes are genuinely useful to the supply side.
-- **Three layouts, not one layout squeezed.** Desktop (≥1280) is the dense
-  twelve-column grid the brief asks for. Tablet (768–1279) drops to two columns
-  and folds each wide table's least load-bearing columns rather than hiding them
-  behind a horizontal scroll nobody discovers. Phone (<768) is a different
-  interface: navigation moves to a bottom tab bar, the four filter dropdowns
-  become one button opening a full-screen sheet, wide tables become records, and
-  the panel order changes so money at risk is first rather than fifth.
+I did not build a what has changed since you last visited marker, even though it
+is a nice feature, because your data is a fixed export. It would have been
+theatre.
 
-  The phone version was not a squeeze that needed tuning — it was broken. Three
-  native `<details>` popovers could be open at once, stacked over each other and
-  over the page; the targets panel's fixed 280px + 1fr grid rendered its prose
-  one word per line; the lead table clipped the currency unit off its own
-  amounts. All three are fixed at the structure level, not with a media query
-  patch.
+I also removed a row spacing control I had built, because when I looked at it
+properly it saved about twelve percent of height and added a button that looked
+like a menu. Not worth it.
 
-- **Queues paginate at 25.** This dataset's longest queue is 47 rows, so nothing
-  here needs it. A real dealer group's stalled-order list is thousands, and a
-  queue that renders all of them stops being usable long before it stops
-  rendering. Selection and select-all deliberately operate on the visible page,
-  so a bulk action can never touch a row the reader has not seen.
+## How I know it actually works
 
-## Hardening pass
+Two layers.
 
-**The period filter now answers the question that was asked.** Selecting Oct–Dec
-showed ₹17.55 Cr, because the filter selected leads by *creation* date and
-reported that cohort's eventual deliveries. Money that actually arrived in
-Oct–Dec was ₹24.81 Cr. Both are legitimate questions and they are now separate:
-`?basis=calendar` selects leads by when they last moved — which for a delivered
-lead is exactly its delivery date — and `?basis=cohort` keeps the old behaviour.
-Conversion screens default to cohort, everything else to calendar, and only an
-explicit choice travels across navigation.
+The first is a set of thirty three checks that recompute every headline number
+straight from your raw file and compare it against what the product says. Not
+against a saved copy of the answer, against the source. If a change ever moves
+the delivered revenue, the conversion rate or the money at risk, those checks fail
+immediately. They have run on every single change I made.
 
-**The queues ignore the period entirely.** Under Q4 the oldest stalled order read
-67 days; all-time it is 195 days and ₹50.50 L. The most urgent item in the
-business vanished because the lead behind it was created in June. Branch,
-vehicle and source still narrow the queues; the period does not, and a standing
-notice says so.
+The second layer opens a real browser and looks at the product the way you would.
+It loads 32 different views at four screen sizes in both light and dark, and it
+checks the things that are invisible in a code review. Does anything overflow the
+screen. Is every column heading actually sitting above its own data. Is every
+button big enough to hit with a thumb. Is every piece of text readable against its
+background, measured properly rather than eyeballed. Does every page have a
+heading and its own name in the browser tab.
 
-**A rate and an accusation no longer share a threshold.** Ten leads to publish a
-rate; thirty to *name* a branch as the problem, and every branch must clear it.
-The June view previously indicted Downtown at 27.3% while Highway had sold 0 of
-8 and escaped the headline by being too small to rate — the branch that got
-named was demonstrably not the worst. Below the floor the finding block says so.
-Superlatives carry their comparison set for the same reason: "worst of the 2
-sources with enough volume to rate", never a bare "worst".
+That second layer earned its keep. It found a bug where a two pixel decoration I
+had added to table rows was quietly pushing every row one column across from its
+own header, on every table, on every screen size. It looked fine on a laptop
+because there was room to absorb it. On a phone it put the customer name over the
+value column, which is exactly what you spotted in your screenshot.
 
-**Money ranges are sorted, not assumed.** The two bounds come from two different
-average deal values and neither is reliably larger, so filtered views rendered
-`₹11.99 L – ₹8.68 L`. Each end now carries the name of the basis that produced
-it.
+It also caught text that was too faint to pass accessibility standards, chart dots
+that were nearly invisible against the background, and two pages that had no
+heading at all.
 
-**Queue actions are real.** Dismiss, snooze seven days and mark-chased persist to
-`localStorage`; handled rows leave the queue, the counter falls, an undo strip
-reverses the last action, a toggle shows what was handled, and a reset returns
-everything. A snooze expires on its own. It still reaches no dealer management
-system, and the footer says so.
+Both layers are in the repository. Run npm test for the numbers and npm run audit
+for the browser checks.
 
-**Two defects the automated hunt found that no human had reported:** a one-month
-window produced a forecast of "₹0 to ₹0 · 0% likely" over leads worth lakhs —
-zero conversions observed is the absence of a forecast, not a forecast of zero,
-and it is now withheld; and targets stopped being narrowed at all once the
-calendar basis moved the window to a different field, so a one-month view
-compared its 26 leads against the full seven-month plan of 1,426 units.
+## What I would do next
 
-## Verification
+If this were going into real use, three things.
 
-A frozen baseline suite recomputes every published anchor **from the raw JSON**,
-deliberately without going through the analytics layer, and compares the two
-sides. A bug that moves both in the same direction is the one thing a
-self-consistent suite cannot catch, so the two halves of each assertion are
-computed by different code. It runs after every change; anything that fails it
-is reverted rather than argued with.
+First, connect it to a live source instead of a file, and unfreeze the clock once
+there is something to keep it honest.
 
-Beyond that, five harnesses run against a real browser and a production build:
-358 URLs across the filter cross-product are grepped for the signatures of bad
-generated prose (descending ranges, "1 leads", NaN, "0 of 0", unguarded
-superlatives); cross-page consistency asserts the same metric agrees on every
-page that shows it; the interaction layer is checked for focus trapping, focus
-restoration, the reduced-motion contract and layout-triggering transitions; the
-queue's persistence is driven end to end; and every route is measured for
-overflow and undersized touch targets at four breakpoints. A separate end-to-end
-pass renders every route under `next start` and asserts 50 rendered figures and
-states — including the 404s, the empty-by-filter state, the n=1 case where every
-rate must be withheld, and the filter-conflict case that used to render an empty
-screen. Layout is measured, not eyeballed: all nine routes are checked for
-horizontal overflow at fifteen viewport widths from 360px to 1920px, and fifteen
-interaction checks drive the real browser — opening a second filter menu closes
-the first, Escape and outside-clicks close it, the phone sheet fits its viewport
-and lists every group, the tab bar navigates, and queue pagination keeps
-select-all inside the visible page. `NOW` is pinned to 2025-12-31T19:10:00Z, so
-nothing in the product depends on when it is run.
+Second, let people save and share views with each other rather than only in their
+own browser. The plumbing is already there because every filter lives in the web
+address.
 
-Two defects that survived my own review and were caught by an external audit are
-worth naming, because both were failures of the same kind — the code was right
-and the sentence around it was not:
-
-1. The verdict quoted the whole-funnel recovery figure inside a sentence about
-   first contact, overstating that lever roughly tenfold. The what-if simulator
-   two clicks away stated it correctly the whole time.
-2. `/branch/B3?branch=B1` rendered "0 of 510 leads" with a recovery link that
-   preserved the contradiction.
-
-Numbers being right is not the same as a product being right, and unit tests
-cannot see the difference. That is why the end-to-end pass now asserts rendered
-*sentences*, not only rendered figures.
-
-One expected value does not reproduce and is documented rather than tuned away:
-the walk-in source's delivered revenue computes to ₹25.00 L where the
-expectations file says ₹24.99 L. Only truncation produces 24.99, and truncation
-breaks three other rows in the same file. The expectations file is internally
-inconsistent on that cell; the code is not adjusted to match it.
+Third, sit with an actual branch manager for an hour and watch which screen they
+open second. I have a strong guess. I would rather know.
