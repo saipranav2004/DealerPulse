@@ -98,40 +98,129 @@ export function TrendChart({
         <polygon points={area} fill="var(--c-focus)" opacity="0.10" />
         <polyline points={line} fill="none" stroke="var(--c-focus)" strokeWidth="2" strokeLinejoin="round" />
 
-        {points.map((p, i) => (
-          <g key={p.label}>
-            {/* Generous invisible hit area so the tooltip is easy to catch. */}
-            <rect
-              x={x(i) - plotW / (points.length * 2)}
-              y={padT}
-              width={plotW / points.length}
-              height={plotH}
-              fill="transparent"
-            >
-              <title>{`${p.label}: ${fmt(p.value)}`}</title>
-            </rect>
-            <circle
-              cx={x(i)}
-              cy={y(p.value)}
-              r={i === points.length - 1 || i === peakIndex ? 4 : 2.6}
-              fill="var(--c-focus)"
-              stroke="var(--surface)"
-              strokeWidth="2"
-            >
-              <title>{`${p.label}: ${fmt(p.value)}`}</title>
-            </circle>
-            <text
-              x={x(i)}
-              y={height - 6}
-              textAnchor="middle"
-              fill="var(--ink-3)"
-              fontSize="10"
-              fontFamily="var(--mono)"
-            >
-              {p.shortLabel}
-            </text>
-          </g>
-        ))}
+        {points.map((p, i) => {
+          const prev = i > 0 ? points[i - 1] : null;
+          /*
+           * Month-over-month, computed here rather than in the reader's head.
+           * A previous month of zero has no percentage — the change is stated
+           * in absolute terms instead of printing an infinity.
+           */
+          const delta =
+            prev && prev.value !== 0 ? (p.value - prev.value) / Math.abs(prev.value) : null;
+          const deltaText =
+            prev === null
+              ? null
+              : delta === null
+                ? `${fmt(p.value - prev.value)} vs ${prev.shortLabel}`
+                : `${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(1)}% vs ${prev.shortLabel}`;
+
+          const lines = deltaText ? [p.label, fmt(p.value), deltaText] : [p.label, fmt(p.value)];
+          /*
+           * SVG has no text metrics at build time, so the panel is sized from
+           * the longest line at the mono font's 0.6em advance. Over-estimating
+           * costs a few pixels of panel; under-estimating clips the text.
+           */
+          const tipW = Math.max(...lines.map((l) => l.length)) * 6.4 + 18;
+          const tipH = deltaText ? 46 : 34;
+          /*
+           * Which side the panel opens on is a paint-order decision, not an
+           * aesthetic one. SVG draws in document order, so a later month's dot
+           * lands on top of an earlier month's panel — everything to the LEFT
+           * of a point is already painted and can never overdraw it. So the
+           * panel opens left whenever the gap to the previous point can hold
+           * it, and only falls back to the right when it cannot.
+           */
+          const gap = 10;
+          const leftRoom = i > 0 ? x(i) - x(i - 1) - gap - 4 : 0;
+          const openLeft = tipW <= leftRoom;
+          const tipX = openLeft
+            ? x(i) - tipW - gap
+            : Math.min(x(i) + gap, padL + plotW - tipW);
+          const tipY = Math.min(Math.max(y(p.value) - tipH / 2, padT), padT + plotH - tipH);
+
+          return (
+            <g key={p.label} className="tr-pt">
+              {/* Generous invisible hit area so the tooltip is easy to catch. */}
+              <rect
+                x={x(i) - plotW / (points.length * 2)}
+                y={padT}
+                width={plotW / points.length}
+                height={plotH}
+                fill="transparent"
+              >
+                <title>{`${p.label}: ${fmt(p.value)}${deltaText ? ` · ${deltaText}` : ''}`}</title>
+              </rect>
+              {/* The crosshair: one shared vertical rule, so the eye lands on
+                  the same month in the axis and the line at once. */}
+              <line
+                className="tr-cross"
+                x1={x(i)}
+                x2={x(i)}
+                y1={padT}
+                y2={padT + plotH}
+                stroke="var(--rule-strong)"
+                strokeWidth="1"
+                strokeDasharray="3 3"
+              />
+              <circle
+                className="tr-dot"
+                cx={x(i)}
+                cy={y(p.value)}
+                r={i === points.length - 1 || i === peakIndex ? 4 : 2.6}
+                fill="var(--c-focus)"
+                stroke="var(--surface)"
+                strokeWidth="2"
+              />
+              <text
+                className="tr-lab"
+                x={x(i)}
+                y={height - 6}
+                textAnchor="middle"
+                fill="var(--ink-3)"
+                fontSize="10"
+                fontFamily="var(--mono)"
+              >
+                {p.shortLabel}
+              </text>
+              <g className="tr-tip" pointerEvents="none">
+                <rect
+                  x={tipX}
+                  y={tipY}
+                  width={tipW}
+                  height={tipH}
+                  rx="4"
+                  fill="var(--surface)"
+                  stroke="var(--rule-strong)"
+                  strokeWidth="1"
+                />
+                <text x={tipX + 9} y={tipY + 15} fill="var(--ink-3)" fontSize="10" fontFamily="var(--mono)">
+                  {p.label}
+                </text>
+                <text
+                  x={tipX + 9}
+                  y={tipY + 29}
+                  fill="var(--ink)"
+                  fontSize="12"
+                  fontWeight="600"
+                  fontFamily="var(--mono)"
+                >
+                  {fmt(p.value)}
+                </text>
+                {deltaText ? (
+                  <text
+                    x={tipX + 9}
+                    y={tipY + 41}
+                    fill={delta !== null && delta < 0 ? 'var(--critical)' : 'var(--ink-2)'}
+                    fontSize="10"
+                    fontFamily="var(--mono)"
+                  >
+                    {deltaText}
+                  </text>
+                ) : null}
+              </g>
+            </g>
+          );
+        })}
 
         {/* Direct-label the endpoint only — a number on every point is noise. */}
         <text

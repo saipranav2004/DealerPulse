@@ -6,7 +6,7 @@
 
 import Link from 'next/link';
 import { DrawerShell } from '@/components/drawer-shell';
-import { Glyph } from '@/components/ui';
+import { Glyph, pct } from '@/components/ui';
 import type { LeadTimeline } from '@/lib/analytics/leadTimeline';
 import { formatCurrency, formatCurrencyExact, formatNumber } from '@/lib/format';
 import { SOURCE_LABELS } from '@/lib/url-filters';
@@ -149,11 +149,34 @@ export function LeadDrawer({ timeline, closeHref }: { timeline: LeadTimeline; cl
 
         <ol className="tl" style={{ listStyle: 'none', margin: 0, padding: 0, paddingLeft: 22 }}>
           {timeline.nodes.map((node, index) => (
-            <li key={`${node.status}-${index}`}>
+            /* The drawer is a transient overlay, so its reveal replays each
+               time it opens — unlike the funnel, which argues a point once. */
+            <li key={`${node.status}-${index}`} style={{ '--i': index } as React.CSSProperties}>
               {node.gapDays !== null ? (
                 <div className={node.overdue ? 'tl-gap over' : 'tl-gap'}>
                   <span className="num">{node.gapDays} d</span>
                   {node.medianDays !== null ? <> · median {node.medianDays} d</> : null}
+                  {/*
+                    The dwell bar. Scaled so the longer of the two ends at 91%
+                    of the track: an overdue stage therefore always shows its
+                    fill running visibly past the median tick, which is the
+                    whole point of drawing it rather than printing two numbers.
+                  */}
+                  {node.medianDays !== null && node.medianDays > 0 ? (
+                    (() => {
+                      const scale = Math.max(node.gapDays, node.medianDays) / 0.91;
+                      return (
+                        <span
+                          className="dwell"
+                          role="img"
+                          aria-label={`${node.gapDays} days against a median of ${node.medianDays}`}
+                        >
+                          <span className="dwell-fill" style={{ width: pct(node.gapDays / scale) }} />
+                          <span className="dwell-tick" style={{ left: pct(node.medianDays / scale) }} />
+                        </span>
+                      );
+                    })()
+                  ) : null}
                 </div>
               ) : null}
               <div className={`tl-node ${node.status === 'lost' ? 'bad' : 'done'}`}>

@@ -188,18 +188,71 @@ export function describeFilters(
   state: FilterState,
   branchName: (id: string) => string,
 ): string[] {
-  const parts: string[] = [];
+  return activeFilters(state, branchName).map((f) => f.label);
+}
+
+/**
+ * One entry per *individually removable* filter, each carrying the state that
+ * results from dropping it.
+ *
+ * `describeFilters` above joins same-kind selections into one string, which is
+ * fine for a sentence but wrong for a control: with two branches selected the
+ * reader could only clear both. Here each selected value is its own entry, so a
+ * chip can drop exactly itself.
+ */
+export interface ActiveFilter {
+  /** Stable key for React and for animation identity across a reflow. */
+  key: string;
+  kind: 'period' | 'branch' | 'model' | 'source';
+  label: string;
+  /** The filter state with just this one value removed. */
+  without: FilterState;
+}
+
+export function activeFilters(
+  state: FilterState,
+  branchName: (id: string) => string,
+): ActiveFilter[] {
+  const out: ActiveFilter[] = [];
+
   if (state.periodId !== DEFAULT_PERIOD.id) {
-    parts.push(
-      state.basis === 'cohort'
-        ? `${periodFor(state).label} (leads created)`
-        : `${periodFor(state).label} (activity)`,
-    );
+    out.push({
+      key: 'period',
+      kind: 'period',
+      label:
+        state.basis === 'cohort'
+          ? `${periodFor(state).label} (leads created)`
+          : `${periodFor(state).label} (activity)`,
+      // Dropping the period drops the basis with it: a basis with no period
+      // selects nothing, and `toQueryString` would omit it anyway.
+      without: { ...state, periodId: DEFAULT_PERIOD.id, basisExplicit: false },
+    });
   }
-  if (state.branchIds.length > 0) parts.push(state.branchIds.map(branchName).join(', '));
-  if (state.models.length > 0) parts.push(state.models.join(', '));
-  if (state.sources.length > 0) parts.push(state.sources.map((s) => SOURCE_LABELS[s]).join(', '));
-  return parts;
+  for (const id of state.branchIds) {
+    out.push({
+      key: `branch:${id}`,
+      kind: 'branch',
+      label: branchName(id),
+      without: { ...state, branchIds: state.branchIds.filter((b) => b !== id) },
+    });
+  }
+  for (const model of state.models) {
+    out.push({
+      key: `model:${model}`,
+      kind: 'model',
+      label: model,
+      without: { ...state, models: state.models.filter((m) => m !== model) },
+    });
+  }
+  for (const source of state.sources) {
+    out.push({
+      key: `source:${source}`,
+      kind: 'source',
+      label: SOURCE_LABELS[source],
+      without: { ...state, sources: state.sources.filter((s) => s !== source) },
+    });
+  }
+  return out;
 }
 
 /**

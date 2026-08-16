@@ -64,6 +64,69 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               "document.addEventListener('click',function(e){all().forEach(function(d){if(!d.contains(e.target))d.open=false})});})()",
           }}
         />
+        {/*
+          The funnel reveal, gated.
+
+          The bars grow from zero on first sight of the funnel — the race between
+          the branch's bar and the pale peer bar is the argument the page makes.
+          Replaying it on every navigation turns that argument into decoration,
+          so it runs once per session and only once the funnel is actually on
+          screen. Without this script, or with the flag already set, the bars
+          simply render at full size: the animation is opt-in, so the readable
+          state is the one that needs no JavaScript.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){var K='dp-funnel-shown';var seen=new WeakSet();" +
+              "function done(){try{return !!sessionStorage.getItem(K)}catch(e){return true}}" +
+              "function watch(el){if(seen.has(el))return;seen.add(el);" +
+              "if(!('IntersectionObserver' in window)){return}" +
+              "var io=new IntersectionObserver(function(es){es.forEach(function(e){" +
+              "if(!e.isIntersecting)return;io.disconnect();" +
+              "try{sessionStorage.setItem(K,'1')}catch(x){}" +
+              "e.target.setAttribute('data-funnel','run')})},{threshold:0.35});io.observe(el)}" +
+              "function scan(){if(done())return;" +
+              "document.querySelectorAll('[data-funnel=\"idle\"]').forEach(watch)}" +
+              "if(document.readyState!=='loading')scan();" +
+              "else document.addEventListener('DOMContentLoaded',scan);" +
+              // App Router swaps the tree on soft navigation, so re-scan for a
+              // funnel that arrives without a full page load.
+              "new MutationObserver(scan).observe(document.documentElement,{childList:true,subtree:true});})()",
+          }}
+        />
+        {/*
+          FLIP for the filter chips.
+
+          Removing a chip is a navigation — the server re-renders the bar with
+          one fewer chip — so the survivors jump to their new positions between
+          two paints. This records each chip's box before the navigation, and
+          when the new bar arrives, applies the inverse offset and releases it,
+          so a chip slides from where it was to where it now is. Purely
+          cosmetic: with the script absent the chips simply appear in place.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){var prev={};var pending=false;" +
+              "function boxes(){var m={};document.querySelectorAll('[data-flip=\"chips\"] [data-flip-key]')" +
+              ".forEach(function(el){m[el.getAttribute('data-flip-key')]=el.getBoundingClientRect()});return m}" +
+              "document.addEventListener('click',function(e){" +
+              "var a=e.target&&e.target.closest&&e.target.closest('[data-flip=\"chips\"] [data-flip-key]');" +
+              "if(!a)return;prev=boxes();pending=true},true);" +
+              "function play(){if(!pending)return;pending=false;" +
+              "if(matchMedia('(prefers-reduced-motion: reduce)').matches){prev={};return}" +
+              "document.querySelectorAll('[data-flip=\"chips\"] [data-flip-key]').forEach(function(el){" +
+              "var was=prev[el.getAttribute('data-flip-key')];if(!was)return;" +
+              "var now=el.getBoundingClientRect();" +
+              "var dx=was.left-now.left,dy=was.top-now.top;" +
+              "if(Math.abs(dx)<1&&Math.abs(dy)<1)return;" +
+              "el.animate([{transform:'translate('+dx+'px,'+dy+'px)'},{transform:'none'}]," +
+              "{duration:180,easing:'cubic-bezier(.2,0,0,1)'})});prev={}}" +
+              "new MutationObserver(function(){if(pending)requestAnimationFrame(play)})" +
+              ".observe(document.documentElement,{childList:true,subtree:true});})()",
+          }}
+        />
       </head>
       <body>
         <a href="#main" className="sr-only">

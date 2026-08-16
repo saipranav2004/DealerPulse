@@ -94,6 +94,21 @@ export function Rail({
     <div className="rail" role="img" aria-label={label}>
       <div className="rail-track" />
       {focus ? <div className="rail-fill is-focus" style={{ width: pct(value / safeScale) }} /> : null}
+      {/*
+        The connector. On hover it spans exactly the distance between the group
+        tick and this branch's mark, so the gap the row is about is drawn rather
+        than inferred by eye from two floating marks. Painted before both so
+        neither is obscured.
+      */}
+      {benchmark !== undefined ? (
+        <div
+          className="rail-gap"
+          style={{
+            left: pct(Math.min(value, benchmark) / safeScale),
+            width: pct(Math.abs(value - benchmark) / safeScale),
+          }}
+        />
+      ) : null}
       {benchmark !== undefined ? (
         <div className="rail-bench" style={{ left: pct(benchmark / safeScale) }} />
       ) : null}

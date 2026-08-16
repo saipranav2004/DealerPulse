@@ -16,7 +16,7 @@
   --rule-strong: #C4CCD4;
   --ink:         #12161C;
   --ink-2:       #59626E;
-  --ink-3:       #8B949E;
+  --ink-3:       #6E767F;
 
   /* Semantic */
   --accent:      #0B5A8A;
@@ -31,7 +31,11 @@
 
   /* Chart */
   --c-focus:   #0B5A8A;
-  --c-context: #C4CCD4;
+  /* 3.36:1 on the light surface, up from 1.62:1. A mark required to read the
+     chart cannot sit that close to its background, and every use of this token
+     is a real mark: rail positions, the severity rail, completed timeline
+     nodes, non-focus scatter dots, dwell fills. */
+  --c-context: #7E8E9E;
   --c-alt:     #B36600;
   --c-bench:   #59626E;
   --c-seq-1:   #DCE7EE;
@@ -75,7 +79,7 @@
     --rule-strong: #35434F;
     --ink:         #E7EBEF;
     --ink-2:       #9AA5B1;
-    --ink-3:       #6B7784;
+    --ink-3:       #7C8794;
     --accent:      #4E9ACB;
     --accent-ink:  #08141C;
     --accent-wash: #14293A;
@@ -86,7 +90,7 @@
     --critical:    #E0655A;
     --critical-wash:#2E1815;
     --c-focus:     #4E9ACB;
-    --c-context:   #3B4956;
+    --c-context:   #66788A;
     --c-alt:       #C8841C;
     --c-bench:     #8B98A5;
     --c-seq-1:     #1C2A36;
@@ -108,7 +112,7 @@
   --rule-strong: #35434F;
   --ink:         #E7EBEF;
   --ink-2:       #9AA5B1;
-  --ink-3:       #6B7784;
+  --ink-3:       #7C8794;
   --accent:      #4E9ACB;
   --accent-ink:  #08141C;
   --accent-wash: #14293A;
@@ -119,7 +123,7 @@
   --critical:    #E0655A;
   --critical-wash:#2E1815;
   --c-focus:     #4E9ACB;
-  --c-context:   #3B4956;
+  --c-context:   #66788A;
   --c-alt:       #C8841C;
   --c-bench:     #8B98A5;
   --c-seq-1:     #1C2A36;
@@ -224,6 +228,13 @@ body {
 .rail-fill  { position: absolute; left: 0; top: 8px; height: 2px; background: var(--c-context); border-radius: 1px; }
 .rail-fill.is-focus { background: var(--c-focus); height: 3px; top: 7.5px; }
 .rail-bench { position: absolute; top: 2px; width: 2px; height: 14px; background: var(--c-bench); border-radius: 1px; }
+/* The hairline joining the group tick to this branch's mark. At rest it is
+   not drawn — five of them at once would be five more lines to read. */
+.rail-gap {
+  position: absolute; top: 8px; height: 2px; background: var(--ink-3);
+  opacity: 0; transition: opacity var(--dur-micro) var(--ease-out);
+}
+.dp-row:hover .rail-gap, .dp-row:focus-within .rail-gap { opacity: .85; }
 .rail-mark  {
   position: absolute; top: 3px; width: 10px; height: 10px; margin-left: -5px;
   border-radius: 50%; background: var(--c-context); box-shadow: 0 0 0 2px var(--surface);
@@ -252,6 +263,16 @@ body {
 .sortbtn[data-active="true"] { color: var(--accent); }
 
 /* --- Skeletons ----------------------------------------------------------- */
+/*
+  Delayed appearance. A skeleton that flashes for 60ms is worse than no
+  skeleton — it reads as a glitch rather than as progress. The whole loading
+  tree stays invisible for 150ms, so anything that resolves faster than a
+  reader can perceive never shows one at all. `both` holds the from-state
+  during the delay; nothing here is interactive, so hiding it costs nothing.
+*/
+@keyframes sk-in { from { opacity: 0; } to { opacity: 1; } }
+[aria-busy="true"] { animation: sk-in var(--dur-short) var(--ease-out) 150ms both; }
+
 .sk { background: var(--surface-3); border-radius: var(--r-sm); position: relative; overflow: hidden; }
 .sk::after {
   content: ""; position: absolute; inset: 0;
@@ -403,6 +424,21 @@ body {
 .subset-bar .bar-i { width: 3px; height: 14px; background: var(--accent); border-radius: 1px; flex: none; }
 .subset-bar b { font-weight: 600; }
 
+/* Active filters, one removable chip each. */
+.fchips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.fchip {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 24px;
+  padding: 2px 6px 2px 7px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink-2); font-size: 11.5px; text-decoration: none;
+  white-space: nowrap;
+  transition: border-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+}
+.fchip:hover { border-color: var(--critical); color: var(--ink); }
+.fchip-k { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.fchip-x { font-size: 13px; line-height: 1; color: var(--ink-3); }
+.fchip:hover .fchip-x { color: var(--critical); }
+@media (max-width: 1023px) { .fchip { min-height: 32px; } }
+
 .crumb { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-3); flex-wrap: wrap; }
 .crumb a {
   color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--rule-strong);
@@ -469,11 +505,19 @@ body {
    the height without changing the row's own rhythm. */
 .dp-name {
   font-size: 12.5px; color: var(--ink-2); text-decoration: none;
-  display: inline-flex; align-items: center; min-height: 24px;
+  /* `inline-block`, NOT `inline-flex`: a flex container drops whitespace-only
+     text nodes, and several of these links are "{name} <span>{city}</span>" —
+     as a flex box that rendered "DowntownChennai". The padding buys the 24px
+     WCAG target and the negative margin gives the row its height back. */
+  display: inline-block; min-height: 24px; padding: 3px 0; margin: -3px 0;
 }
 .dp-row.is-focus .dp-name { color: var(--ink); font-weight: 600; }
 .dp-row.is-focus .dp-cell { background: var(--accent-wash); }
-.dp-val { font-family: var(--mono); font-size: 12.5px; width: 46px; text-align: right; flex: none; }
+.dp-val { font-family: var(--mono); font-size: 12.5px; width: 62px; text-align: right; flex: none; }
+/* The absolute under the rate, permanently — not on hover. A reader
+   comparing branches needs the denominators side by side, not one at a
+   time under a cursor. */
+.dp-abs { display: block; font-size: 10px; color: var(--ink-3); line-height: 1.3; white-space: nowrap; }
 .dp-row.is-focus .dp-val { font-weight: 600; }
 .dp-delta { font-family: var(--mono); font-size: 11px; width: 48px; text-align: right; flex: none; color: var(--ink-3); }
 a.dp-name:hover { color: var(--accent); text-decoration: underline; }
@@ -607,6 +651,29 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 .tl-gap.over { border-left-color: var(--critical); color: var(--critical); background: var(--critical-wash); }
 .tl-gap .num { font-size: 11px; font-weight: 600; }
 
+/* Dwell against the stage median, drawn rather than left as two numbers to
+   subtract. The tick is the median; a fill that runs past it is the overrun. */
+.dwell {
+  position: relative; display: inline-block; width: 64px; height: 6px;
+  background: var(--c-grid); border-radius: 3px; overflow: hidden; flex: none;
+}
+.dwell-fill {
+  position: absolute; left: 0; top: 0; height: 6px;
+  background: var(--c-context); border-radius: 3px;
+  transform-origin: left center;
+}
+.tl-gap.over .dwell-fill { background: var(--critical); }
+.dwell-tick { position: absolute; top: -1px; width: 1px; height: 8px; background: var(--ink-2); }
+
+/* Status history reveals one node at a time so the sequence reads as a
+   sequence. 45ms is under the ~100ms threshold where a stagger stops feeling
+   like one gesture and starts feeling like a queue. */
+@keyframes tl-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.tl > li {
+  animation: tl-in var(--dur-short) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
 /* --- Drawer -------------------------------------------------------------- */
 .drawer-scrim {
   position: fixed; inset: 0; z-index: 40;
@@ -725,7 +792,7 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 /* Branch comparison: hovering one row raises its marks and drops the others,
    so "cause beside effect" becomes literal rather than inferred. */
 .dp:hover .dp-row:not(:hover) .rail-mark,
-.dp:focus-within .dp-row:not(:focus-within):not(:hover) .rail-mark { opacity: .45; }
+.dp:focus-within .dp-row:not(:focus-within):not(:hover) .rail-mark { opacity: .55; }
 .dp .rail-mark, .dp .rail-fill, .dp .rail-bench {
   transition: opacity var(--dur-micro) var(--ease-out);
 }
@@ -735,6 +802,37 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 /* Funnel bars: the pale peer ghost gains an outline on hover so the gap is
    legible rather than estimated. */
 .fnl-stage:hover .fnl-ghost { outline: 1px solid var(--rule-strong); outline-offset: 0; }
+
+/* The stage panel. `.fnl-stage` becomes the positioning context; the panel is
+   in the DOM at rest so a screen reader reaches it whether or not it is shown,
+   and nothing reflows when it appears. */
+.fnl-stage { position: relative; }
+.fnl-tip {
+  position: absolute; left: 116px; bottom: calc(100% + 6px); z-index: 5;
+  min-width: 232px; max-width: 300px;
+  padding: var(--s3); border: 1px solid var(--rule-strong); border-radius: var(--r-md);
+  background: var(--surface); box-shadow: 0 6px 16px rgba(0,0,0,.10);
+  opacity: 0; visibility: hidden;
+  transform: translateY(3px);
+  transition: opacity var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out),
+              visibility 0s linear var(--dur-micro);
+  pointer-events: none;
+}
+.fnl-stage:hover .fnl-tip, .fnl-stage:focus-within .fnl-tip {
+  opacity: 1; visibility: visible; transform: translateY(0);
+  transition-delay: 0s, 0s, 0s;
+}
+.fnl-tip-h { margin: 0 0 4px; font-size: 11px; font-weight: 600; color: var(--ink); }
+.fnl-tip-r { margin: 2px 0 0; font-size: 11.5px; color: var(--ink-2); line-height: 1.45; }
+/* The first stage's panel would open above the panel header, so it drops below
+   instead. `:first-of-type` cannot say this — each stage sits in its own
+   wrapper, so every one of them is a first-of-type. */
+.fnl-stage.is-first .fnl-tip { bottom: auto; top: calc(100% + 6px); transform: translateY(-3px); }
+.fnl-stage.is-first:hover .fnl-tip, .fnl-stage.is-first:focus-within .fnl-tip { transform: translateY(0); }
+@media (max-width: 767px) {
+  /* No room to float beside a 116px label column on a phone. */
+  .fnl-tip { left: 0; right: 0; min-width: 0; max-width: none; }
+}
 
 /* Chart marks. A dot must be easy to hit before it is pretty: the visible dot
    is 5.5px and the target over it is 24px. */
@@ -746,10 +844,40 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 .chart-mark { outline: none; }
 /* Hovering any mark drops the rest back, so the one being read is the one
    that is legible. */
+/*
+  The dim floor is 0.55, measured rather than chosen. At 0.35 a context dot
+  composited to 1.17:1 against the surface — not receded, gone — which destroys
+  the very comparison the hover exists to support.
+
+  No opacity below ~0.8 reaches the 3:1 of WCAG 1.4.11 for these marks, because
+  the context colour is only 4.39:1 undimmed. That is acceptable here and is a
+  deliberate reading of the rule: 1.4.11 governs graphics *required to
+  understand the content*, and the state in which this content is read is the
+  resting state, where every mark is at full strength. The dim is transient
+  de-emphasis under a cursor, and every chart in this product is backed by
+  visible labels or an adjacent table, so nothing is available only while
+  dimmed. Text is held to the full 4.5:1 and is never dimmed at all.
+*/
 svg:hover .chart-mark:not(:hover) .chart-dot,
-svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity: .35; }
+svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity: .55; }
 .chart-mark:hover .chart-dot, .chart-mark:focus-visible .chart-dot { transform: scale(1.35); }
 .chart-mark:focus-visible .chart-dot { stroke: var(--accent); stroke-width: 3; }
+
+/* Trend line: a shared crosshair, the read month brought forward and its
+   neighbours dropped back, and a panel carrying the month-over-month change so
+   the comparison is not left to the reader. All of it is hover state on a
+   server-rendered SVG — no client JavaScript is involved. */
+.tr-cross, .tr-tip { opacity: 0; transition: opacity var(--dur-micro) var(--ease-out); }
+.tr-pt:hover .tr-cross, .tr-pt:focus-within .tr-cross { opacity: 1; }
+.tr-pt:hover .tr-tip, .tr-pt:focus-within .tr-tip { opacity: 1; }
+.tr-dot, .tr-lab { transition: opacity var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out); }
+.tr-dot { transform-box: fill-box; transform-origin: center; }
+/* The dot recedes; the month label does not. Dimming 11px text to 0.4 put it at
+   2.56:1, and focus here is better carried by darkening the read month than by
+   pushing the other five below the text-contrast floor. */
+svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
+.tr-pt:hover .tr-dot { transform: scale(1.5); }
+.tr-pt:hover .tr-lab { fill: var(--ink); }
 
 /* KPI cards become the doorway to the rows behind them. */
 .vital-link {
@@ -793,8 +921,14 @@ svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity
  * rather than replaying this, and the reduced-motion block above disables it.
  */
 @keyframes fnl-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.fnl-bar-grow {
-  transform-origin: left center;
+/*
+  Opt-in, not opt-out. At rest the bar is simply at its final size; the reveal
+  only runs when the gate script has marked the funnel as on screen for the
+  first time this session. That way the no-JavaScript and already-seen paths
+  both land on the readable state rather than on a bar stuck at zero width.
+*/
+.fnl-bar-grow { transform-origin: left center; }
+[data-funnel="run"] .fnl-bar-grow {
   animation: fnl-grow var(--dur-long) var(--ease-out) both;
   animation-delay: var(--stagger, 0ms);
 }
@@ -1145,7 +1279,7 @@ svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity
   .dp-row.is-focus .dp-cell:first-child { background: var(--accent-wash); }
   .dp-row.is-focus .dp-cell { background: transparent; }
   .dp-row.is-focus .dp-cell:first-child { background: var(--accent-wash); }
-  .dp-val { width: 52px; }
+  .dp-val { width: 62px; }
   .dp-delta { display: none; }
 }
 
@@ -1256,4 +1390,6 @@ svg:focus-within .chart-mark:not(:focus-within):not(:hover) .chart-dot { opacity
   }
   /* The signature funnel renders at its final size rather than growing. */
   .fnl-bar-grow { animation: none !important; transform: none !important; }
+  /* Status history appears whole rather than one node at a time. */
+  .tl > li { animation: none !important; opacity: 1 !important; transform: none !important; }
 }

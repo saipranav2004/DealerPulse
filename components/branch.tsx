@@ -162,15 +162,25 @@ export function BenchmarkFunnel({
       footer={
         comparison.breakStep ? (
           <p className="t-micro">
-            Every step trails the peer group, but one loses{' '}
+            {/*
+              "Every step trails the peer group" was printed whenever a worst
+              step existed — including for branches that beat their peers at
+              four steps out of five, which made the caption contradict the
+              deltas printed directly above it. The claim is now tested.
+            */}
+            {comparison.steps.every((s) => s.deltaPoints < 0)
+              ? 'Every step trails the peer group, but one loses '
+              : 'The single largest loss is '}
             <strong style={{ color: 'var(--ink)' }}>
               {Math.round(comparison.breakStep.leadsLost)} of{' '}
               {counted(comparison.breakStep.fromCount, 'lead')} in a
               single move
             </strong>
             . At peer rates {comparison.leads === 1 ? 'that lead' : `those ${formatNumber(comparison.leads)} leads`} would have produced{' '}
-            <span className="num">{comparison.deliveriesAtPeerRates.toFixed(0)}</span> deliveries instead of{' '}
-            <span className="num">{comparison.actualDeliveries}</span>.
+            <span className="num">{comparison.deliveriesAtPeerRates.toFixed(0)}</span> deliveries;{' '}
+            {/* "instead of" implies the peer figure is the better one. It is
+                not always — several branches are ahead of their peers. */}
+            this branch produced <span className="num">{comparison.actualDeliveries}</span>.
           </p>
         ) : (
           <p className="t-micro">
@@ -180,15 +190,53 @@ export function BenchmarkFunnel({
         )
       }
     >
-      <div>
+      <div data-funnel="idle">
         {comparison.stages.map((stage, index) => {
           const step = comparison.steps[index];
           const isBreak = step !== undefined && breakKey === `${step.from}-${step.to}`;
           const last = index === comparison.stages.length - 1;
 
+          const prevStage = index > 0 ? comparison.stages[index - 1] : null;
+          const droppedHere = prevStage ? prevStage.count - stage.count : 0;
+          /* The pale bar behind each stage is the peer group's shape, and it
+             carried no number anywhere on the page. */
+          const peerGap = stage.peerCount - stage.count;
+
           return (
             <div key={stage.stage}>
-              <div className="fnl-stage">
+              <div className={index === 0 ? 'fnl-stage is-first' : 'fnl-stage'}>
+                {/*
+                  The bar answers "how many"; the panel answers the two
+                  questions the bar provokes — how many did not get here, and
+                  what would the peer group have had at this point. Hover and
+                  keyboard focus reveal the same panel.
+                */}
+                <div className="fnl-tip" role="note">
+                  <p className="fnl-tip-h">{STAGE_LABEL[stage.stage]}</p>
+                  <p className="fnl-tip-r">
+                    <span className="num">{formatNumber(stage.count)}</span> of{' '}
+                    <span className="num">{formatNumber(total)}</span> leads reach this stage
+                  </p>
+                  {prevStage ? (
+                    <p className="fnl-tip-r">
+                      <span className="num">{formatNumber(droppedHere)}</span>{' '}
+                      {plural(droppedHere, 'lead', 'leads')} did not arrive from{' '}
+                      {STAGE_LABEL[prevStage.stage].toLowerCase()}
+                    </p>
+                  ) : null}
+                  <p className="fnl-tip-r">
+                    {peerGap === 0 ? (
+                      <>Peers would be at the same count</>
+                    ) : (
+                      <>
+                        Peers would have <span className="num">{formatNumber(stage.peerCount)}</span> here —{' '}
+                        <span className={peerGap > 0 ? 'warn' : 'pos'}>
+                          {peerGap > 0 ? `${formatNumber(peerGap)} more` : `${formatNumber(-peerGap)} fewer`}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
                 <span
                   className="fnl-lbl"
                   style={last ? { color: 'var(--ink)', fontWeight: 600 } : undefined}

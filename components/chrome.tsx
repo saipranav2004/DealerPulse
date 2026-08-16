@@ -17,7 +17,7 @@ import {
   DEFAULT_PERIOD,
   PERIOD_PRESETS,
   SOURCE_LABELS,
-  describeFilters,
+  activeFilters,
   hrefWithFilters,
   isFiltered,
   periodFor,
@@ -557,7 +557,7 @@ export function SubsetBar({
 }) {
   if (!isFiltered(state) && !inheritedNote) return null;
   const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? id;
-  const parts = describeFilters(state, branchName);
+  const active = activeFilters(state, branchName);
 
   return (
     <div className="subset-bar">
@@ -571,8 +571,32 @@ export function SubsetBar({
             computed on this subset.
           </>
         )}
-        {parts.length > 0 ? <span className="dim"> · {parts.join(' · ')}</span> : null}
       </span>
+      {/*
+        One chip per selected value, each dropping only itself. These were a
+        joined sentence before, which meant the only way out of a two-branch
+        selection was to clear every filter on the page.
+      */}
+      {active.length > 0 ? (
+        <span className="fchips" data-flip="chips">
+          {active.map((filter) => (
+            <Link
+              key={filter.key}
+              data-flip-key={filter.key}
+              className="fchip"
+              href={`${basePath}${toQueryString(filter.without)}`}
+              aria-label={`Remove filter ${filter.label}`}
+              scroll={false}
+            >
+              <span className="fchip-k">{filter.kind}</span>
+              {filter.label}
+              <span className="fchip-x" aria-hidden="true">
+                ×
+              </span>
+            </Link>
+          ))}
+        </span>
+      ) : null}
       <span className="sp" />
       {/* The basis changes what the period *means*, so it is offered as a
           one-click switch here rather than only inside the period menu. */}

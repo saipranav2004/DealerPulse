@@ -463,6 +463,11 @@ export function BranchComparison({
                       />
                       <span className="dp-val">
                         <RateText rate={branch.firstContactRate} />
+                        {/* The percentage alone hides its own weight: 60% of 5
+                            and 60% of 500 read identically. */}
+                        <span className="dp-abs num">
+                          {Math.round(contact * branch.firstContactRate.n)} of {branch.firstContactRate.n}
+                        </span>
                       </span>
                       <span className="dp-delta">
                         <DeltaPoints
@@ -491,6 +496,9 @@ export function BranchComparison({
                       />
                       <span className="dp-val">
                         <RateText rate={branch.winRate} />
+                        <span className="dp-abs num">
+                          {Math.round(win * branch.winRate.n)} of {branch.winRate.n}
+                        </span>
                       </span>
                       <span className="dp-delta">
                         <DeltaPoints
