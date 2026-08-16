@@ -119,3 +119,19 @@ export function formatMonthKey(monthKey: string): string {
   const name = MONTH_NAMES[index];
   return name ? `${name} ${year}` : monthKey;
 }
+
+/**
+ * Pluralise a counted noun.
+ *
+ * Every templated count in this product is a claim a reader can catch being
+ * wrong, and "1 leads" undermines the numbers next to it. Irregular plurals are
+ * passed explicitly rather than guessed.
+ */
+export function plural(count: number, one: string, many = `${one}s`): string {
+  return count === 1 ? one : many;
+}
+
+/** `formatNumber` plus the correctly inflected noun — "1 lead", "12 leads". */
+export function counted(count: number, one: string, many = `${one}s`): string {
+  return `${formatNumber(count)} ${plural(count, one, many)}`;
+}

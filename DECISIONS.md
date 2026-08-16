@@ -269,11 +269,66 @@ median cycle, a December lead cannot have delivered yet. Cohort series carry an
   rendering. Selection and select-all deliberately operate on the visible page,
   so a bulk action can never touch a row the reader has not seen.
 
+## Hardening pass
+
+**The period filter now answers the question that was asked.** Selecting Oct–Dec
+showed ₹17.55 Cr, because the filter selected leads by *creation* date and
+reported that cohort's eventual deliveries. Money that actually arrived in
+Oct–Dec was ₹24.81 Cr. Both are legitimate questions and they are now separate:
+`?basis=calendar` selects leads by when they last moved — which for a delivered
+lead is exactly its delivery date — and `?basis=cohort` keeps the old behaviour.
+Conversion screens default to cohort, everything else to calendar, and only an
+explicit choice travels across navigation.
+
+**The queues ignore the period entirely.** Under Q4 the oldest stalled order read
+67 days; all-time it is 195 days and ₹50.50 L. The most urgent item in the
+business vanished because the lead behind it was created in June. Branch,
+vehicle and source still narrow the queues; the period does not, and a standing
+notice says so.
+
+**A rate and an accusation no longer share a threshold.** Ten leads to publish a
+rate; thirty to *name* a branch as the problem, and every branch must clear it.
+The June view previously indicted Downtown at 27.3% while Highway had sold 0 of
+8 and escaped the headline by being too small to rate — the branch that got
+named was demonstrably not the worst. Below the floor the finding block says so.
+Superlatives carry their comparison set for the same reason: "worst of the 2
+sources with enough volume to rate", never a bare "worst".
+
+**Money ranges are sorted, not assumed.** The two bounds come from two different
+average deal values and neither is reliably larger, so filtered views rendered
+`₹11.99 L – ₹8.68 L`. Each end now carries the name of the basis that produced
+it.
+
+**Queue actions are real.** Dismiss, snooze seven days and mark-chased persist to
+`localStorage`; handled rows leave the queue, the counter falls, an undo strip
+reverses the last action, a toggle shows what was handled, and a reset returns
+everything. A snooze expires on its own. It still reaches no dealer management
+system, and the footer says so.
+
+**Two defects the automated hunt found that no human had reported:** a one-month
+window produced a forecast of "₹0 to ₹0 · 0% likely" over leads worth lakhs —
+zero conversions observed is the absence of a forecast, not a forecast of zero,
+and it is now withheld; and targets stopped being narrowed at all once the
+calendar basis moved the window to a different field, so a one-month view
+compared its 26 leads against the full seven-month plan of 1,426 units.
+
 ## Verification
 
-Numbers are asserted against a fixed expectations file rather than trusted:
-326 unit tests across 20 files pin every published figure, the low-sample guard,
-the percentile convention, and the whole-day duration rule. A separate end-to-end
+A frozen baseline suite recomputes every published anchor **from the raw JSON**,
+deliberately without going through the analytics layer, and compares the two
+sides. A bug that moves both in the same direction is the one thing a
+self-consistent suite cannot catch, so the two halves of each assertion are
+computed by different code. It runs after every change; anything that fails it
+is reverted rather than argued with.
+
+Beyond that, five harnesses run against a real browser and a production build:
+358 URLs across the filter cross-product are grepped for the signatures of bad
+generated prose (descending ranges, "1 leads", NaN, "0 of 0", unguarded
+superlatives); cross-page consistency asserts the same metric agrees on every
+page that shows it; the interaction layer is checked for focus trapping, focus
+restoration, the reduced-motion contract and layout-triggering transitions; the
+queue's persistence is driven end to end; and every route is measured for
+overflow and undersized touch targets at four breakpoints. A separate end-to-end
 pass renders every route under `next start` and asserts 50 rendered figures and
 states — including the 404s, the empty-by-filter state, the n=1 case where every
 rate must be withheld, and the filter-conflict case that used to render an empty

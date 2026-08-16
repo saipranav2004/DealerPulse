@@ -261,7 +261,21 @@ export interface DateRange {
  * Every field is optional; an omitted field means "no constraint on this axis".
  */
 export interface Filters {
+  /**
+   * Cohort basis: the lead was *created* inside this window. Answers "how did
+   * the leads we took in this period convert".
+   */
   dateRange?: DateRange;
+  /**
+   * Calendar basis: the lead last *moved* inside this window. Answers "what
+   * happened in this period". For every delivered lead in this dataset
+   * `last_activity_at` is exactly the delivery date, so a calendar window over
+   * delivered leads is a window over deliveries.
+   *
+   * The two are mutually exclusive in practice — a basis is one or the other —
+   * but both are modelled so the type cannot express "neither applies".
+   */
+  activityRange?: DateRange;
   branchIds?: readonly BranchId[];
   models?: readonly VehicleModel[];
   sources?: readonly LeadSource[];

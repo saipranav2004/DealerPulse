@@ -11,7 +11,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatNumber, plural } from '@/lib/format';
 
 export interface WhatIfInputs {
   branchName: string;
@@ -47,6 +47,10 @@ export function WhatIf({ inputs }: { inputs: WhatIfInputs }) {
 
   const branchShort = inputs.branchName.replace(' Toyota', '');
   const moved = Math.abs(rate / 100 - inputs.baselineRate) > 0.001;
+  // Rounded once, so the prose and the cells above it can never disagree about
+  // whether anything moved.
+  const contactedDelta = Math.round(model.deltaContacted);
+  const deliveredDelta = Math.round(model.deltaHeld);
 
   return (
     <section className="panel c12">
@@ -154,19 +158,40 @@ export function WhatIf({ inputs }: { inputs: WhatIfInputs }) {
               </div>
             </div>
 
+            {/* At the branch's current rate the slider models no change, and
+                "0 fewer customers … 0 fewer deliveries and about ₹0" is a
+                sentence about nothing. Say that instead. */}
             <p
               className="t-body"
               style={{ marginTop: 'var(--s4)', padding: 'var(--s3)', background: 'var(--surface-2)', borderRadius: 'var(--r-md)' }}
             >
-              Calling <strong>{rate}%</strong> of {branchShort}&rsquo;s leads would reach{' '}
-              <strong>
-                {Math.abs(Math.round(model.deltaContacted))} {model.deltaContacted >= 0 ? 'more' : 'fewer'}
-              </strong>{' '}
-              customers. Holding the branch&rsquo;s own conversion after first contact, that becomes{' '}
-              <strong>
-                {Math.abs(Math.round(model.deltaHeld))} {model.deltaHeld >= 0 ? 'more' : 'fewer'} deliveries
-              </strong>{' '}
-              and about <strong className="num">{formatCurrency(Math.abs(model.revenueHeld))}</strong>.
+              {contactedDelta === 0 ? (
+                <>
+                  <strong>{rate}%</strong> is where {branchShort} already sits, so this models no change. Drag
+                  the slider, or jump to the peer rate, to see what moving it is worth.
+                </>
+              ) : (
+                <>
+                  Calling <strong>{rate}%</strong> of {branchShort}&rsquo;s leads would reach{' '}
+                  <strong>
+                    {formatNumber(Math.abs(contactedDelta))}{' '}
+                    {contactedDelta > 0 ? 'more' : 'fewer'}{' '}
+                    {plural(Math.abs(contactedDelta), 'customer')}
+                  </strong>
+                  . Holding the branch&rsquo;s own conversion after first contact, that becomes{' '}
+                  <strong>
+                    {deliveredDelta === 0 ? (
+                      <>no change in deliveries</>
+                    ) : (
+                      <>
+                        {formatNumber(Math.abs(deliveredDelta))} {deliveredDelta > 0 ? 'more' : 'fewer'}{' '}
+                        {plural(Math.abs(deliveredDelta), 'delivery', 'deliveries')}
+                      </>
+                    )}
+                  </strong>{' '}
+                  and about <strong className="num">{formatCurrency(Math.abs(model.revenueHeld))}</strong>.
+                </>
+              )}
             </p>
           </div>
         </div>

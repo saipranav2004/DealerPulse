@@ -70,7 +70,7 @@ export default async function RepPage({
   if (!repRecord) notFound();
 
   // Scoped to one rep, so a branch filter can only ever contradict the route.
-  const state = withoutBranchScope(parseFilterState(query, dataset.branches.map((b) => b.id)));
+  const state = withoutBranchScope(parseFilterState(query, dataset.branches.map((b) => b.id), 'cohort'));
   const viewAs = parseViewAs(query, dataset.branches.map((b) => b.id));
   const filters = toFilters(state);
   const basePath = `/rep/${repId}`;

@@ -10,7 +10,7 @@ import Link from 'next/link';
 import type { FunnelResult } from '@/lib/analytics/funnel';
 import type { LossAnalysisResult } from '@/lib/analytics/lossAnalysis';
 import type { RepRollup } from '@/lib/analytics/reps';
-import { formatCurrency, formatDurationHours, formatNumber, formatPercentValue } from '@/lib/format';
+import { counted, formatCurrency, formatDurationHours, formatNumber, formatPercentValue, plural } from '@/lib/format';
 import { hrefWithFilters, type FilterState } from '@/lib/url-filters';
 import { LowN, Panel, Rail, RateText, pct } from '@/components/ui';
 import type { FunnelStage, Lead } from '@/lib/types';
@@ -147,7 +147,7 @@ export function ControllableNumber({
     <Panel title="The controllable number" className="c5">
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
         <span className="t-metric">{never}</span>
-        <span className="t-small">of {rep.leadsHandled} leads never contacted</span>
+        <span className="t-small">of {counted(rep.leadsHandled, 'lead')} never contacted</span>
       </div>
       <div
         style={{
@@ -240,7 +240,7 @@ export function RepFunnel({ funnel }: { funnel: FunnelResult }) {
                   <span className="fnl-arrow">↓</span>
                   <div className="fnl-tin">
                     {step.conversion.value === null ? (
-                      <LowN n={step.fromCount} note={`${step.fromCount} leads`} />
+                      <LowN n={step.fromCount} note={counted(step.fromCount, 'lead')} />
                     ) : (
                       <span className="fnl-pct">{formatPercentValue(step.conversion.value, 0)}</span>
                     )}
@@ -416,7 +416,8 @@ export function RepEmptyState({
         <footer className="panel-ft">
           <p className="t-micro">
             <strong style={{ color: 'var(--ink)' }}>What we can still say:</strong> {rep.name} manages a
-            branch holding <span className="num">{formatNumber(branchLeads)}</span> leads, of which{' '}
+            branch holding <span className="num">{formatNumber(branchLeads)}</span>{' '}
+            {plural(branchLeads, 'lead')}, of which{' '}
             <span className="num">{formatNumber(branchNeverContacted)}</span> were never contacted. Manager
             accountability is expressed through the branch, because that is where the data attaches.
           </p>

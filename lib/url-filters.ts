@@ -66,8 +66,35 @@ export const SOURCE_LABELS: Record<LeadSource, string> = {
 };
 
 /** The filter state as it appears in the URL, before becoming a `Filters`. */
+/**
+ * Which question the period filter answers.
+ *
+ * `calendar` — what happened inside the window. Selects leads by when they
+ *   last moved. For delivered leads that timestamp is the delivery date, so a
+ *   calendar quarter over deliveries is that quarter's revenue.
+ * `cohort` — how the leads *taken* in the window converted. Selects by
+ *   `created_at`. Correct for conversion analysis and wrong for "how did last
+ *   quarter go", which is the more common executive question.
+ */
+export type PeriodBasis = 'calendar' | 'cohort';
+
+export const PERIOD_BASES: readonly { id: PeriodBasis; label: string; help: string }[] = [
+  { id: 'calendar', label: 'Activity in period', help: 'What happened between these dates' },
+  { id: 'cohort', label: 'Leads created in period', help: 'How the leads taken in this window converted' },
+];
+
 export interface FilterState {
   periodId: string;
+  basis: PeriodBasis;
+  /**
+   * True when the basis came from the URL rather than the route default.
+   *
+   * Only an explicit choice is carried across navigation. Without this,
+   * following a link from the overview (calendar) to a branch page would
+   * silently override that screen's cohort default, and the funnel would start
+   * comparing a moving intake.
+   */
+  basisExplicit: boolean;
   branchIds: string[];
   models: VehicleModel[];
   sources: LeadSource[];
@@ -91,7 +118,16 @@ function readOne(value: string | string[] | undefined): string | undefined {
  * Parse search params into filter state, discarding anything unrecognised so
  * that a hand-edited URL can never crash a page or silently narrow the data.
  */
-export function parseFilterState(params: SearchParams, validBranchIds: readonly string[]): FilterState {
+export function parseFilterState(
+  params: SearchParams,
+  validBranchIds: readonly string[],
+  /**
+   * Route default. Conversion screens default to cohort because comparing a
+   * branch's funnel only means something over a fixed intake; every other
+   * screen defaults to calendar.
+   */
+  defaultBasis: PeriodBasis = 'calendar',
+): FilterState {
   const periodCandidate = readOne(params.period);
   const periodId = PERIOD_PRESETS.some((preset) => preset.id === periodCandidate)
     ? (periodCandidate as string)
@@ -105,7 +141,11 @@ export function parseFilterState(params: SearchParams, validBranchIds: readonly 
     (ALL_SOURCES as readonly string[]).includes(s),
   );
 
-  return { periodId, branchIds, models, sources };
+  const basisCandidate = readOne(params.basis);
+  const basisExplicit = basisCandidate === 'calendar' || basisCandidate === 'cohort';
+  const basis: PeriodBasis = basisExplicit ? (basisCandidate as PeriodBasis) : defaultBasis;
+
+  return { periodId, basis, basisExplicit, branchIds, models, sources };
 }
 
 export function periodFor(state: FilterState): PeriodPreset {
@@ -122,7 +162,9 @@ export function toFilters(state: FilterState): Filters {
   const period = periodFor(state);
 
   if (period.id !== DEFAULT_PERIOD.id) {
-    filters.dateRange = { from: new Date(period.from), to: new Date(period.to) };
+    const range = { from: new Date(period.from), to: new Date(period.to) };
+    if (state.basis === 'cohort') filters.dateRange = range;
+    else filters.activityRange = range;
   }
   if (state.branchIds.length > 0) filters.branchIds = state.branchIds;
   if (state.models.length > 0) filters.models = state.models;
@@ -147,7 +189,13 @@ export function describeFilters(
   branchName: (id: string) => string,
 ): string[] {
   const parts: string[] = [];
-  if (state.periodId !== DEFAULT_PERIOD.id) parts.push(periodFor(state).label);
+  if (state.periodId !== DEFAULT_PERIOD.id) {
+    parts.push(
+      state.basis === 'cohort'
+        ? `${periodFor(state).label} (leads created)`
+        : `${periodFor(state).label} (activity)`,
+    );
+  }
   if (state.branchIds.length > 0) parts.push(state.branchIds.map(branchName).join(', '));
   if (state.models.length > 0) parts.push(state.models.join(', '));
   if (state.sources.length > 0) parts.push(state.sources.map((s) => SOURCE_LABELS[s]).join(', '));
@@ -161,6 +209,9 @@ export function describeFilters(
 export function toQueryString(state: FilterState, extra: Record<string, string | undefined> = {}): string {
   const params = new URLSearchParams();
   if (state.periodId !== DEFAULT_PERIOD.id) params.set('period', state.periodId);
+  // Over the full dataset the basis selects nothing, so it is only meaningful —
+  // and only serialized — alongside a period.
+  if (state.basisExplicit && state.periodId !== DEFAULT_PERIOD.id) params.set('basis', state.basis);
   if (state.branchIds.length > 0) params.set('branch', state.branchIds.join(','));
   if (state.models.length > 0) params.set('model', state.models.join(','));
   if (state.sources.length > 0) params.set('source', state.sources.join(','));
@@ -183,11 +234,17 @@ export function hrefWithFilters(
 /** The same state with one axis cleared. */
 export function withoutAxis(state: FilterState, axis: 'period' | 'branch' | 'model' | 'source'): FilterState {
   return {
+    ...state,
     periodId: axis === 'period' ? DEFAULT_PERIOD.id : state.periodId,
     branchIds: axis === 'branch' ? [] : state.branchIds,
     models: axis === 'model' ? [] : state.models,
     sources: axis === 'source' ? [] : state.sources,
   };
+}
+
+/** The same state on the other basis, marked explicit so it survives a jump. */
+export function withBasis(state: FilterState, basis: PeriodBasis): FilterState {
+  return { ...state, basis, basisExplicit: true };
 }
 
 /**
@@ -225,6 +282,8 @@ export function withoutBranchScope(state: FilterState): FilterState {
 
 export const EMPTY_FILTER_STATE: FilterState = {
   periodId: DEFAULT_PERIOD.id,
+  basis: 'calendar',
+  basisExplicit: false,
   branchIds: [],
   models: [],
   sources: [],

@@ -59,13 +59,23 @@ function ratioOrNull(numerator: number, denominator: number): number | null {
 
 /** Targets in scope, honouring a branch filter and a month range if present. */
 function targetsInScope(dataset: Dataset, filters: Filters) {
+  /*
+   * Either date axis narrows the target months.
+   *
+   * This used to read `filters.dateRange` alone. Once the calendar basis put
+   * the window in `activityRange` instead, targets stopped being narrowed at
+   * all: a one-month view compared its 26 leads against the full seven-month
+   * target of 1,426 units and reported the plan as 55x lead volume.
+   */
+  const range = filters.dateRange ?? filters.activityRange;
+
   const monthsAllowed = (month: MonthKey): boolean => {
-    if (!filters.dateRange) return true;
-    const fromMonth = `${filters.dateRange.from.getUTCFullYear()}-${String(
-      filters.dateRange.from.getUTCMonth() + 1,
+    if (!range) return true;
+    const fromMonth = `${range.from.getUTCFullYear()}-${String(
+      range.from.getUTCMonth() + 1,
     ).padStart(2, '0')}`;
-    const toMonth = `${filters.dateRange.to.getUTCFullYear()}-${String(
-      filters.dateRange.to.getUTCMonth() + 1,
+    const toMonth = `${range.to.getUTCFullYear()}-${String(
+      range.to.getUTCMonth() + 1,
     ).padStart(2, '0')}`;
     return month >= fromMonth && month <= toMonth;
   };

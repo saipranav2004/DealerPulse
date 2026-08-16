@@ -34,6 +34,13 @@ export function filterKey(filters: Filters, scope: Scope): string {
       ? `date:${filters.dateRange.from.toISOString()}..${filters.dateRange.to.toISOString()}`
       : 'date:*',
   );
+  // Must be in the key: without it a cohort and a calendar selection over the
+  // same window would share a cache entry and serve each other's leads.
+  parts.push(
+    filters.activityRange
+      ? `act:${filters.activityRange.from.toISOString()}..${filters.activityRange.to.toISOString()}`
+      : 'act:*',
+  );
   parts.push(filters.branchIds ? `branch:${[...filters.branchIds].sort().join(',')}` : 'branch:*');
   parts.push(filters.models ? `model:${[...filters.models].sort().join(',')}` : 'model:*');
   parts.push(filters.sources ? `source:${[...filters.sources].sort().join(',')}` : 'source:*');
@@ -78,6 +85,12 @@ function matches(lead: Lead, filters: Filters, scope: Scope): boolean {
     if (created > filters.dateRange.to.getTime()) return false;
   }
 
+  if (filters.activityRange) {
+    const moved = lead.lastActivityAt.getTime();
+    if (moved < filters.activityRange.from.getTime()) return false;
+    if (moved > filters.activityRange.to.getTime()) return false;
+  }
+
   if (scope.kind === 'branch' && lead.branchId !== scope.branchId) return false;
   if (scope.kind === 'rep' && lead.assignedTo !== scope.repId) return false;
 
@@ -115,6 +128,7 @@ export function selectLeads(
     !filters.models &&
     !filters.sources &&
     !filters.dateRange &&
+    !filters.activityRange &&
     scope.kind !== 'rep';
 
   const selected = noPredicates ? pool : pool.filter((lead) => matches(lead, filters, scope));

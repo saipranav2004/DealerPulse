@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import { computeVerdict } from '@/lib/analytics/verdict';
 import { computeActionCenter } from '@/lib/analytics/actionCenter';
-import { getDataset, MIN_RATE_DENOMINATOR, NOW } from '@/lib/data';
+import { getDataset, MIN_RATE_DENOMINATOR, MIN_VERDICT_DENOMINATOR, NOW } from '@/lib/data';
 import { formatCurrency, formatNumber, formatPercentValue } from '@/lib/format';
 import { TopBar, Breadcrumb } from '@/components/chrome';
 
@@ -82,20 +82,22 @@ export default function MethodPage() {
                   rates minus <span className="num">{verdict.actualDeliveries}</span> actual ={' '}
                   <span className="num">{verdict.recoverableDeliveries.toFixed(1)}</span> deliveries. Priced
                   at the branch&rsquo;s delivered mix (
-                  <span className="num">{formatCurrency(verdict.averageDeliveredValue)}</span>) that is{' '}
-                  <strong className="num">{formatCurrency(verdict.recoverableValueLow)}</strong>; priced at
-                  the mean across all its leads (
-                  <span className="num">{formatCurrency(verdict.averageDealValue)}</span>) it is{' '}
-                  <strong className="num">{formatCurrency(verdict.recoverableValueHigh)}</strong>. Both bases
-                  are defensible — recovered leads are drawn from the general pool, but the branch has only
-                  ever delivered the cheaper end of it — so the product quotes the range.
+                  <span className="num">{formatCurrency(verdict.averageDeliveredValue)}</span>) and at the
+                  mean across all its leads (
+                  <span className="num">{formatCurrency(verdict.averageDealValue)}</span>), that is{' '}
+                  <strong className="num">{formatCurrency(verdict.recoverable.low)}</strong> to{' '}
+                  <strong className="num">{formatCurrency(verdict.recoverable.high)}</strong>. Both bases are
+                  defensible — recovered leads are drawn from the general pool, but a branch has usually
+                  delivered only part of it — so the product quotes the range. Which basis lands on which end
+                  is not fixed, so the bounds are sorted rather than assumed: the low figure here is the{' '}
+                  {verdict.recoverable.lowBasis}.
                 </p>
                 <p className="t-small" style={{ marginTop: 'var(--s3)' }}>
                   <strong>This is not the value of fixing first contact.</strong> Raising first contact to
                   the peer rate while holding the branch&rsquo;s own conversion after the call yields{' '}
                   <span className="num">{verdict.firstContactDeliveries.toFixed(1)}</span> extra deliveries,
-                  or <strong className="num">{formatCurrency(verdict.firstContactValueLow)}</strong> to{' '}
-                  <strong className="num">{formatCurrency(verdict.firstContactValueHigh)}</strong> — roughly
+                  or <strong className="num">{formatCurrency(verdict.firstContact.low)}</strong> to{' '}
+                  <strong className="num">{formatCurrency(verdict.firstContact.high)}</strong> — roughly
                   a tenth of the whole-funnel figure. The overview states both, and the what-if simulator on{' '}
                   <code>/actions</code> computes them with this same function.
                 </p>
@@ -132,6 +134,37 @@ export default function MethodPage() {
                   <dd className="t-small" style={{ margin: 0 }}>
                     Any rate on fewer than <span className="num">{MIN_RATE_DENOMINATOR}</span> leads is
                     withheld and shown as an em dash.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="t-label">Window boundaries</dt>
+                  <dd className="t-small" style={{ margin: 0 }}>
+                    Every period is inclusive at both ends. A lead is overdue when its expected close date
+                    falls strictly before the pinned current time — so a lead due{' '}
+                    <span className="num">31 Dec</span> at midnight counts as overdue by the evening of the
+                    31st. On this dataset no close date lands exactly on the pinned instant, so{' '}
+                    <code>&lt;</code> and <code>&le;</code> give the same{' '}
+                    <span className="num">31</span> leads; the strict form is used so the two can never
+                    diverge silently.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="t-label">Period basis</dt>
+                  <dd className="t-small" style={{ margin: 0 }}>
+                    <strong>Activity</strong> selects leads that last moved inside the window — for a
+                    delivered lead that is its delivery date, so a calendar quarter over deliveries is that
+                    quarter&rsquo;s revenue. <strong>Leads created</strong> selects by creation date and
+                    answers how an intake converted. Conversion screens default to the second; everything
+                    else to the first.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="t-label">Naming a branch</dt>
+                  <dd className="t-small" style={{ margin: 0 }}>
+                    A rate needs <span className="num">{MIN_RATE_DENOMINATOR}</span> leads; naming a branch as
+                    the problem needs <span className="num">{MIN_VERDICT_DENOMINATOR}</span>, and needs every
+                    branch to clear it. A branch too small to rate is too small to exonerate, so below that
+                    floor the finding is withheld rather than pointed at whoever happens to be rateable.
                   </dd>
                 </div>
                 <div>

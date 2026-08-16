@@ -52,6 +52,17 @@
 
   --e-drawer: 0 0 0 1px rgba(18,22,28,.10), -16px 0 40px rgba(18,22,28,.14);
   --e-pop:    0 0 0 1px rgba(18,22,28,.10), 0 6px 18px rgba(18,22,28,.12);
+
+  /* Motion. Only transform/opacity/colour are ever animated — never a property
+     that triggers layout, so nothing here can shift the page. */
+  --dur-instant: 90ms;
+  --dur-micro:   140ms;
+  --dur-short:   200ms;
+  --dur-medium:  260ms;
+  --dur-long:    600ms;
+  --ease-out:   cubic-bezier(0.16, 1, 0.30, 1);
+  --ease-in:    cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -648,6 +659,133 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 .pager { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 .pager .gap { flex: 1; }
 
+/* ==========================================================================
+   Interaction layer
+
+   Every state below trades a pixel for a fact. A hover that only changes a
+   colour is not built. `:focus-visible` gets the identical treatment
+   throughout, so a keyboard reaches everything a pointer does.
+   ========================================================================== */
+
+/* Table rows: an accent bar scales in from the top, and the row action comes
+   up to full strength. The action is in the DOM at rest, so nothing reflows
+   and a screen reader always reaches it. */
+.tbl-hover tbody tr { position: relative; transition: background-color var(--dur-micro) var(--ease-out); }
+.tbl-hover tbody tr::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: var(--accent); transform: scaleY(0); transform-origin: top;
+  transition: transform var(--dur-micro) var(--ease-out);
+}
+.tbl-hover tbody tr:hover::before,
+.tbl-hover tbody tr:focus-within::before { transform: scaleY(1); }
+.tbl-hover tbody tr .btn { opacity: .55; transition: opacity var(--dur-micro) var(--ease-out); }
+.tbl-hover tbody tr:hover .btn,
+.tbl-hover tbody tr:focus-within .btn { opacity: 1; }
+
+/* Branch comparison: hovering one row raises its marks and drops the others,
+   so "cause beside effect" becomes literal rather than inferred. */
+.dp:hover .dp-row:not(:hover) .rail-mark,
+.dp:focus-within .dp-row:not(:focus-within):not(:hover) .rail-mark { opacity: .45; }
+.dp .rail-mark, .dp .rail-fill, .dp .rail-bench {
+  transition: opacity var(--dur-micro) var(--ease-out);
+}
+.dp-row:hover .rail-mark { transform: translateX(-50%) scale(1.25); }
+.rail-mark { transition: transform var(--dur-micro) var(--ease-out), opacity var(--dur-micro) var(--ease-out); }
+
+/* Funnel bars: the pale peer ghost gains an outline on hover so the gap is
+   legible rather than estimated. */
+.fnl-stage:hover .fnl-ghost { outline: 1px solid var(--rule-strong); outline-offset: 0; }
+
+/* Chart marks. A dot must be easy to hit before it is pretty. */
+.chart-dot { transition: transform var(--dur-micro) var(--ease-out), opacity var(--dur-micro) var(--ease-out); transform-box: fill-box; transform-origin: center; }
+figure:hover .chart-dot { opacity: .35; }
+figure .chart-dot:hover, figure .chart-dot:focus-visible { opacity: 1; transform: scale(1.35); }
+.chart-hit { fill: transparent; cursor: pointer; }
+
+/* KPI cards become the doorway to the rows behind them. */
+.vital-link {
+  display: block; color: inherit; text-decoration: none; height: 100%;
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+.vital-link:hover { background: var(--surface-2); }
+.vital.is-risk .vital-link:hover { background: var(--critical-wash); }
+.vital-go {
+  display: block; margin-top: 6px; font-size: 11px; color: var(--accent);
+  opacity: 0; transform: translateY(-2px);
+  transition: opacity var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out);
+}
+.vital-link:hover .vital-go, .vital-link:focus-visible .vital-go { opacity: 1; transform: none; }
+
+/* Sort arrows rotate rather than swap glyphs, so direction reads as a change
+   of state instead of a change of icon. */
+.sortbtn .arrow {
+  display: inline-block; transition: transform var(--dur-short) var(--ease-inout);
+}
+.sortbtn[data-dir="asc"] .arrow { transform: rotate(180deg); }
+.sortbtn .arrow.is-idle { opacity: 0; transition: opacity var(--dur-micro) var(--ease-out); }
+.sortbtn:hover .arrow.is-idle, .sortbtn:focus-visible .arrow.is-idle { opacity: .45; }
+
+/* Filter chips and menu items. */
+.filter, .menu-item, .btn, .tab, .nav-link, .tabbar-link {
+  transition: background-color var(--dur-instant) var(--ease-out),
+              color var(--dur-instant) var(--ease-out),
+              border-color var(--dur-instant) var(--ease-out);
+}
+.menu-tick { display: inline-block; transition: transform var(--dur-micro) var(--ease-out); }
+.menu-item.on .menu-tick { transform: scale(1); }
+.menu-item:not(.on) .menu-tick { transform: scale(0.6); }
+
+/*
+ * The one orchestrated sequence: the branch funnel's solid bars.
+ *
+ * `scaleX` on a transform-boxed element, so the growth costs no layout. The
+ * pale peer bars are painted at full size from frame one, which is what makes
+ * the comparison readable as it resolves. Filter changes re-render the page
+ * rather than replaying this, and the reduced-motion block above disables it.
+ */
+@keyframes fnl-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.fnl-bar-grow {
+  transform-origin: left center;
+  animation: fnl-grow var(--dur-long) var(--ease-out) both;
+  animation-delay: var(--stagger, 0ms);
+}
+
+/* Drawer. Enter is a slide-and-fade on transform/opacity only; the exit is a
+   navigation, so there is nothing to animate out — the panel unmounts. */
+@keyframes drawer-in { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes scrim-in  { from { opacity: 0; } to { opacity: 1; } }
+.drawer { animation: drawer-in var(--dur-medium) var(--ease-out); will-change: transform, opacity; }
+.drawer-scrim { animation: scrim-in var(--dur-short) var(--ease-out); }
+
+/* Undo strip after a queue action. */
+.undo-bar {
+  display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
+  margin: 0 var(--s5) var(--s4); padding: var(--s2) var(--s3);
+  background: var(--accent-wash); border: 1px solid var(--accent); border-radius: var(--r-md);
+  font-size: 12px; color: var(--accent);
+}
+.undo-bar b { font-weight: 600; }
+
+/* Standing notice above the queues: they do not take the period filter. */
+.queue-note {
+  display: flex; align-items: center; gap: var(--s2);
+  margin: 0; padding: var(--s2) var(--s5);
+  background: var(--warning-wash); color: var(--warning);
+  font-size: 12px; border-bottom: 1px solid var(--rule);
+}
+.queue-note .bar-i { background: var(--warning); }
+.queue-note b { font-weight: 600; }
+
+/* Build stamp. Deliberately plain and always last on the page. */
+.appfoot {
+  display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  padding: var(--s4) var(--s5) var(--s6);
+  font-size: 11px; color: var(--ink-3); background: var(--ground);
+}
+.appfoot a { color: var(--ink-3); }
+.appfoot a:hover { color: var(--ink-2); }
+@media (max-width: 767px) { .appfoot { padding-bottom: 76px; flex-wrap: wrap; } }
+
 /* Entity header: identity, then its headline stats. */
 .ent-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--s6); align-items: center; }
 .ent-stats { display: flex; gap: var(--s6); flex-wrap: wrap; }
@@ -743,6 +881,31 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 
 @media (max-width: 1023px) {
   .topbar, .filterbar, .subset-bar, .verdict, .grid { padding-left: var(--s4); padding-right: var(--s4); }
+  /*
+    Touch tiers: every control in the chrome clears 44px. Below this the top
+    bar's nav links and icon buttons were 26px — fine for a cursor, well under
+    a fingertip.
+  */
+  .nav-link, .marker-btn, .theme-btn, .mark { min-height: 44px; }
+  .nav-link { padding: 0 12px; }
+  .theme-btn { width: 44px; height: 44px; }
+  .mark { display: inline-flex; align-items: center; }
+  .marker-btn { padding: 0 8px; }
+  /*
+    Every real control clears 44px on a touch tier — tablet portrait is a
+    fingertip device too, not a small desktop. Inline links inside prose are
+    exempt (WCAG target-size excludes links in a sentence), but links that act
+    as row navigation still get enough vertical padding to be hit.
+  */
+  .menu-item { min-height: 44px; }
+  .seg a { min-height: 44px; }
+  .tab { min-height: 44px; display: inline-flex; align-items: center; }
+  .sortbtn { min-height: 44px; display: inline-flex; align-items: center; gap: 4px; }
+  .chk { width: 28px; height: 28px; }
+  .q-row > .chk { width: 44px; height: 44px; margin: -8px 0 -8px -8px; }
+  .slider-input { height: 44px; }
+  .tbl .dp-name, .dp-cell .dp-name { display: inline-block; padding: 13px 0; }
+  .dp-cell:first-child .dp-name { display: block; }
   /* Wrap rather than overflow once the shortened labels still do not fit. */
   .topbar { height: auto; min-height: 38px; flex-wrap: wrap; padding-top: 5px; padding-bottom: 5px; row-gap: 4px; }
   .menu-pop { max-width: calc(100vw - var(--s7)); }
@@ -943,10 +1106,14 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
   .dp-delta { display: none; }
 }
 
+/* The contract. Anything that animates must survive this being applied. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    animation-duration: .001ms !important;
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: .001ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+  /* The signature funnel renders at its final size rather than growing. */
+  .fnl-bar-grow { animation: none !important; transform: none !important; }
 }

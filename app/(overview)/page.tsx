@@ -16,13 +16,14 @@ import { computeLeadTimeline } from '@/lib/analytics/leadTimeline';
 import { computeLossAnalysis } from '@/lib/analytics/lossAnalysis';
 import { computeSources } from '@/lib/analytics/sources';
 import { computeTargets } from '@/lib/analytics/targets';
-import { computeVerdict } from '@/lib/analytics/verdict';
+import { computeVerdictOutcome } from '@/lib/analytics/verdict';
 import { getDataset } from '@/lib/data';
 import { selectLeads } from '@/lib/filters';
 import {
   hrefWithFilters,
   parseFilterState,
   parseViewAs,
+  periodFor,
   toFilters,
   toQueryString,
   type SearchParams,
@@ -42,8 +43,18 @@ import {
   WhereDealsDie,
 } from '@/components/overview';
 import { computeForecast } from '@/lib/analytics/forecast';
-import { formatMonthKey } from '@/lib/format';
+import { counted, formatMonthKey } from '@/lib/format';
 import { EmptyByFilter } from '@/components/states';
+
+/**
+ * Rendered on demand, like every other route.
+ *
+ * Without this the index was the one segment eligible for a full-route cache,
+ * and a stale copy of it outlived several deploys — the bare link a reviewer
+ * clicks served older code than every `?period=…` URL of the same build. The
+ * build stamp in the footer makes a recurrence visible instead of silent.
+ */
+export const dynamic = 'force-dynamic';
 
 export default async function OverviewPage({
   searchParams,
@@ -66,7 +77,7 @@ export default async function OverviewPage({
   const kpis = computeKpiSet(dataset, filters);
   const kpiTrend = computeKpis(dataset, filters);
   const branches = computeBranches(dataset, filters);
-  const verdict = computeVerdict(dataset, filters);
+  const { verdict, abstention } = computeVerdictOutcome(dataset, filters);
   const actions = computeActionCenter(dataset, filters);
   const loss = computeLossAnalysis(dataset, filters);
   const sources = computeSources(dataset, filters);
@@ -76,7 +87,14 @@ export default async function OverviewPage({
   const forecast = computeForecast(dataset, filters);
 
   const trendSummary = summariseTrend(activity);
-  const momentum = computeMomentum(dataset, filters, { kind: 'company' }, forecast.expectedDeliveries);
+  const period = periodFor(state);
+  const momentum = computeMomentum(
+    dataset,
+    filters,
+    { kind: 'company' },
+    forecast.expectedDeliveries,
+    { from: new Date(period.from), to: new Date(period.to) },
+  );
   const trendPoints = activity.map((point) => ({
     label: formatMonthKey(point.month),
     shortLabel: formatMonthKey(point.month).split(' ')[0],
@@ -115,7 +133,7 @@ export default async function OverviewPage({
           <EmptyByFilter state={state} branches={dataset.branches} basePath="/" />
         ) : (
           <>
-            <VerdictBand verdict={verdict} branches={branches} filters={state} />
+            <VerdictBand verdict={verdict} abstention={abstention} branches={branches} filters={state} />
 
             <VitalSigns
               kpis={kpis}
@@ -128,6 +146,7 @@ export default async function OverviewPage({
               stalled={actions.stalled}
               stalledByBranch={stalledByBranch}
               revenueDelta={kpiTrend.deltas?.deliveredRevenue.relative ?? null}
+              filters={state}
             />
 
             <div className="grid">
@@ -138,7 +157,7 @@ export default async function OverviewPage({
               />
               <MoneyAtRisk stalled={actions.stalled} filters={state} />
               <MomentumStrip momentum={momentum} />
-              <RevenueTrend points={trendPoints} summary={trendSummary} />
+              <RevenueTrend points={trendPoints} summary={trendSummary} basis={state.basis} />
               <ForecastPanel forecast={forecast} filters={state} />
               <WhereDealsDie loss={loss} />
               <SourceTable sources={sources} />
@@ -147,7 +166,8 @@ export default async function OverviewPage({
 
             <div style={{ padding: '0 var(--s5) var(--s7)' }}>
               <Link href={hrefWithFilters('/actions', state)} className="btn btn-lg">
-                Open the Action Center — {actions.stalled.count + actions.cold.count} items need a decision
+                Open the Action Center — {counted(actions.stalled.count + actions.cold.count, 'item')}{' '}
+                {actions.stalled.count + actions.cold.count === 1 ? 'needs' : 'need'} a decision
               </Link>
             </div>
           </>

@@ -11,7 +11,7 @@
  * backed by visible labels or an adjacent table, so nothing is hover-only.
  */
 
-import { formatCurrency, formatNumber, formatPercentValue } from '@/lib/format';
+import { counted, formatCurrency, formatNumber, formatPercentValue } from '@/lib/format';
 import { pct } from '@/components/ui';
 
 export interface TrendPoint {
@@ -243,7 +243,7 @@ export function ScatterPlot({
         height={height}
         role="img"
         aria-label={`${yLabel} against ${xLabel}. ${points
-          .map((p) => `${p.label}: ${formatNumber(p.x)} and ${formatCurrency(p.y)}`)
+          .map((p) => `${p.label}: ${counted(p.x, 'lead')} and ${formatCurrency(p.y)}`)
           .join('. ')}`}
         style={{ display: 'block', overflow: 'visible' }}
       >
@@ -295,7 +295,7 @@ export function ScatterPlot({
               stroke="var(--surface)"
               strokeWidth="2"
             >
-              <title>{`${p.label}: ${formatNumber(p.x)} leads, ${formatCurrency(p.y)} average`}</title>
+              <title>{`${p.label}: ${counted(p.x, 'lead')}, ${formatCurrency(p.y)} average`}</title>
             </circle>
             <text
               x={sx(p.x)}

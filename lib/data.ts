@@ -43,6 +43,18 @@ export const NOW = new Date('2025-12-31T19:10:00Z');
  */
 export const MIN_RATE_DENOMINATOR = 10;
 
+/**
+ * Leads a branch needs before the product will *name* it as the problem.
+ *
+ * Publishing a rate and publishing an accusation are different acts and were
+ * sharing one threshold. On the June view that let the engine indict Downtown
+ * at 27.3% while Highway had sold 0 of 8 — Highway escaped the headline
+ * precisely because it was too small to rate, so the branch that was named was
+ * demonstrably not the worst. Three times the rate floor is the bar for a
+ * verdict; below it the finding block says so instead of guessing.
+ */
+export const MIN_VERDICT_DENOMINATOR = 30;
+
 // ---------------------------------------------------------------------------
 // Date helpers
 // ---------------------------------------------------------------------------

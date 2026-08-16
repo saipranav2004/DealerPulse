@@ -9,7 +9,8 @@
 
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { formatNumber } from '@/lib/format';
+import { counted, formatNumber } from '@/lib/format';
+import { DATA_CURRENT_AS_OF } from '@/lib/build-info';
 import {
   ALL_MODELS,
   ALL_SOURCES,
@@ -20,14 +21,16 @@ import {
   hrefWithFilters,
   isFiltered,
   periodFor,
+  PERIOD_BASES,
   toQueryString,
+  withBasis,
   withView,
   withoutAxis,
   type FilterState,
 } from '@/lib/url-filters';
 import type { Branch } from '@/lib/types';
 
-export const DATA_CURRENT_AS_OF = '31 Dec 2025';
+export { DATA_CURRENT_AS_OF } from '@/lib/build-info';
 
 function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
@@ -356,19 +359,33 @@ export function FilterBar({
         : `${state.sources.length} selected`;
 
   const separator: FilterOption = { key: '--sep--', label: '', href: '', selected: false };
-
   const groups: FilterGroup[] = [
     {
       key: 'period',
       label: 'Period',
       value: period.shortLabel,
       active: state.periodId !== DEFAULT_PERIOD.id,
-      options: PERIOD_PRESETS.map((preset) => ({
-        key: preset.id,
-        label: preset.label,
-        href: `${basePath}${toQueryString({ ...state, periodId: preset.id })}`,
-        selected: preset.id === state.periodId,
-      })),
+      options: [
+        ...PERIOD_PRESETS.map((preset) => ({
+          key: preset.id,
+          label: preset.label,
+          href: `${basePath}${toQueryString({ ...state, periodId: preset.id })}`,
+          selected: preset.id === state.periodId,
+        })),
+        // Over the full dataset every lead is in scope on either basis, so the
+        // choice would be a control that does nothing.
+        ...(state.periodId === DEFAULT_PERIOD.id
+          ? []
+          : [
+              separator,
+              ...PERIOD_BASES.map((entry) => ({
+                key: `basis-${entry.id}`,
+                label: entry.label,
+                href: `${basePath}${toQueryString(withBasis(state, entry.id))}`,
+                selected: state.basis === entry.id,
+              })),
+            ]),
+      ],
     },
     scopedBranch
       ? {
@@ -493,7 +510,7 @@ export function FilterBar({
               </section>
             ))}
             <div className="fb-actions">
-              <span className="t-micro num">{formatNumber(leadCount)} leads match</span>
+              <span className="t-micro num">{counted(leadCount, 'lead')} match</span>
               <span className="sp" />
               {isFiltered(state) ? (
                 <Link href={basePath} className="btn">
@@ -511,7 +528,9 @@ export function FilterBar({
           Clear all
         </Link>
       ) : null}
-      <span className="t-micro num fb-count-label">{formatNumber(leadCount)} leads</span>
+      <span className="t-micro num fb-count-label" aria-live="polite" aria-atomic="true">
+        {counted(leadCount, 'lead')}
+      </span>
     </div>
   );
 }
@@ -548,13 +567,23 @@ export function SubsetBar({
           <>{inheritedNote} </>
         ) : (
           <>
-            Filtered view — <b>{formatNumber(shown)} of {formatNumber(total)} leads</b>. Every figure below
-            is computed on this subset.
+            Filtered view — <b>{formatNumber(shown)} of {counted(total, 'lead')}</b>. Every figure below is
+            computed on this subset.
           </>
         )}
         {parts.length > 0 ? <span className="dim"> · {parts.join(' · ')}</span> : null}
       </span>
       <span className="sp" />
+      {/* The basis changes what the period *means*, so it is offered as a
+          one-click switch here rather than only inside the period menu. */}
+      {state.periodId !== DEFAULT_PERIOD.id ? (
+        <Link
+          href={`${basePath}${toQueryString(withBasis(state, state.basis === 'cohort' ? 'calendar' : 'cohort'))}`}
+          className="btn btn-sm"
+        >
+          {state.basis === 'cohort' ? 'Show activity in period' : 'Show leads created in period'}
+        </Link>
+      ) : null}
       <Link href={basePath} className="btn btn-sm">
         Clear filters
       </Link>

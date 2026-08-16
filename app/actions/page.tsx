@@ -13,13 +13,16 @@ import { computeWhatIf } from '@/lib/analytics/whatIf';
 import { computeVerdict } from '@/lib/analytics/verdict';
 import { getDataset } from '@/lib/data';
 import { selectLeads } from '@/lib/filters';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { counted, formatCurrency, formatNumber } from '@/lib/format';
 import {
   hrefWithFilters,
   parseFilterState,
   parseViewAs,
   toFilters,
   toQueryString,
+  withoutAxis,
+  DEFAULT_PERIOD,
+  periodFor,
   type SearchParams,
 } from '@/lib/url-filters';
 import { Breadcrumb, FilterBar, SubsetBar, TopBar } from '@/components/chrome';
@@ -72,14 +75,25 @@ export default async function ActionCenterPage({
   // A role is authoritative, not decorative: a branch manager's view is
   // scoped to their branch even if the branch parameter is missing.
   const state = viewAs ? { ...baseState, branchIds: [viewAs] } : baseState;
+  /**
+   * The queues ignore the period, deliberately.
+   *
+   * Under a Q4 filter the oldest stalled order showed 67 days; all-time it is
+   * 195 days and ₹50.50 L. The single most urgent item in the business
+   * disappeared because the lead behind it was created in June. An overdue
+   * order is overdue regardless of which window you are looking at, so branch,
+   * vehicle and source still narrow these lists and the period does not.
+   */
+  const queueState = withoutAxis(state, 'period');
   const filters = toFilters(state);
+  const queueFilters = toFilters(queueState);
   const basePath = '/actions';
 
   const queueParam = typeof query.q === 'string' ? query.q : 'stalled';
   const queue: QueueId = QUEUE_IDS.includes(queueParam as QueueId) ? (queueParam as QueueId) : 'stalled';
 
   const leads = selectLeads(dataset, filters);
-  const actions = computeActionCenter(dataset, filters);
+  const actions = computeActionCenter(dataset, queueFilters);
   const verdict = computeVerdict(dataset, filters);
   const whatIf = verdict ? computeWhatIf(dataset, verdict.branchId, verdict.breakStep.peerRate, filters) : null;
 
@@ -147,14 +161,28 @@ export default async function ActionCenterPage({
         }
       />
       <SubsetBar
-        state={state}
+        state={queueState}
         branches={dataset.branches}
         basePath={basePath}
-        shown={leads.length}
+        shown={selectLeads(dataset, queueFilters).length}
         total={dataset.leads.length}
       />
 
       <main id="main">
+        {/* Said once, plainly, rather than left for a reader to infer from a
+            count that does not move when they change the period. */}
+        <p className="queue-note">
+          <span className="bar-i" aria-hidden="true" />
+          Queues show every open item regardless of period
+          {state.periodId !== DEFAULT_PERIOD.id ? (
+            <>
+              {' '}— the <b>{periodFor(state).label}</b> filter narrows the rest of the product, not this
+              list. Branch, vehicle and source still apply here.
+            </>
+          ) : (
+            <>. Branch, vehicle and source still apply here.</>
+          )}
+        </p>
         <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--rule)', padding: 'var(--s4) var(--s5) 0' }}>
           <nav className="tabs" aria-label="Queues">
             {tabs.map((tab) => (
@@ -179,7 +207,7 @@ export default async function ActionCenterPage({
                 </p>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                   <span className="t-metric crit">{formatCurrency(actions.stalled.value)}</span>
-                  <span className="t-small muted">across {actions.stalled.count} orders</span>
+                  <span className="t-small muted">across {counted(actions.stalled.count, 'order')}</span>
                 </div>
               </div>
               <span style={{ width: 1, height: 38, background: 'var(--rule)' }} aria-hidden="true" />

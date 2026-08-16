@@ -10,12 +10,7 @@ import type { CycleTimeResult } from '@/lib/analytics/cycleTime';
 import type { LossAnalysisResult } from '@/lib/analytics/lossAnalysis';
 import type { RepRollup, RepsResult } from '@/lib/analytics/reps';
 import type { TargetsResult } from '@/lib/analytics/targets';
-import {
-  formatCurrency,
-  formatDurationHours,
-  formatNumber,
-  formatPercentValue,
-} from '@/lib/format';
+import { counted, formatCurrency, formatDurationHours, formatNumber, formatPercentValue, plural } from '@/lib/format';
 import { hrefWithFilters, type FilterState } from '@/lib/url-filters';
 import { Bar, DeltaPoints, Glyph, LowN, Panel, RateText, pct } from '@/components/ui';
 import { InsufficientData } from '@/components/states';
@@ -72,7 +67,7 @@ export function BranchHeader({
                 Manager <strong style={{ color: 'var(--ink)' }}>{managers[0].name}</strong> ·{' '}
               </>
             ) : null}
-            {formatNumber(leads)} leads in this period
+            {counted(leads, 'lead')} in this period
           </p>
         </div>
         <div style={{ borderLeft: '1px solid var(--rule)', paddingLeft: 'var(--s5)' }}>
@@ -161,7 +156,7 @@ export function BenchmarkFunnel({
   return (
     <Panel
       title="Conversion funnel"
-      subtitle={`Solid = ${branchName.replace(' Toyota', '')} · pale = the same ${formatNumber(comparison.leads)} leads at peer rates`}
+      subtitle={`Solid = ${branchName.replace(' Toyota', '')} · pale = the same ${counted(comparison.leads, 'lead')} at peer rates`}
       className="c7"
       aside={<span className="chip"><span className="num">{comparison.leads}</span> leads</span>}
       footer={
@@ -169,10 +164,11 @@ export function BenchmarkFunnel({
           <p className="t-micro">
             Every step trails the peer group, but one loses{' '}
             <strong style={{ color: 'var(--ink)' }}>
-              {Math.round(comparison.breakStep.leadsLost)} of {comparison.breakStep.fromCount} leads in a
+              {Math.round(comparison.breakStep.leadsLost)} of{' '}
+              {counted(comparison.breakStep.fromCount, 'lead')} in a
               single move
             </strong>
-            . At peer rates these {formatNumber(comparison.leads)} leads would have produced{' '}
+            . At peer rates {comparison.leads === 1 ? 'that lead' : `those ${formatNumber(comparison.leads)} leads`} would have produced{' '}
             <span className="num">{comparison.deliveriesAtPeerRates.toFixed(0)}</span> deliveries instead of{' '}
             <span className="num">{comparison.actualDeliveries}</span>.
           </p>
@@ -201,9 +197,25 @@ export function BenchmarkFunnel({
                 </span>
                 <div className="fnl-track">
                   <div className="fnl-ghost" style={{ width: pct(stage.peerCount / total) }} />
+                  {/*
+                    The signature moment.
+
+                    On first paint the solid bar grows from zero while the pale
+                    peer bar is drawn at full size and never moves — the race
+                    between them *is* the argument this page makes, so it is
+                    the one place motion carries information rather than
+                    attention. It animates `transform`, never `width`, so no
+                    layout is triggered and nothing shifts. Staggered 60ms per
+                    stage; skipped entirely under reduced motion.
+                  */}
                   <div
-                    className={comparison.breakStep ? 'fnl-real' : 'fnl-real ok'}
-                    style={{ width: pct(stage.count / total) }}
+                    className={`fnl-bar-grow ${comparison.breakStep ? 'fnl-real' : 'fnl-real ok'}`}
+                    style={
+                      {
+                        width: pct(stage.count / total),
+                        '--stagger': `${index * 60}ms`,
+                      } as React.CSSProperties
+                    }
                   />
                 </div>
                 <span className="fnl-ct" style={last ? { fontWeight: 600 } : undefined}>
@@ -226,7 +238,7 @@ export function BenchmarkFunnel({
                         </span>
                         <span className="fnl-lost">
                           {isBreak
-                            ? `${step.leadsLost} of ${step.fromCount} leads leave here${step.from === 'new' ? ' — never called' : ''}`
+                            ? `${step.leadsLost} of ${counted(step.fromCount, 'lead')} leave here${step.from === 'new' ? ' — never called' : ''}`
                             : `${step.leadsLost} lost`}
                         </span>
                       </>
@@ -341,7 +353,8 @@ export function BranchLossPanel({ loss }: { loss: LossAnalysisResult }) {
         topStage && topStage.stage === 'new' ? (
           <p className="t-micro">
             The largest single reason is not competitive — it is{' '}
-            <strong style={{ color: 'var(--ink)' }}>absence</strong>. {topStage.count} leads have no recorded
+            <strong style={{ color: 'var(--ink)' }}>absence</strong>. {counted(topStage.count, 'lead')}{' '}
+            {plural(topStage.count, 'has', 'have')} no recorded
             contact at all.
           </p>
         ) : undefined
@@ -415,7 +428,16 @@ export function DistributionStrip({
   const branchBest = Math.max(...branchReps.map((rep) => rep.winRate.value ?? 0));
   const nextAbove = rankable.find((rep) => !inBranch(rep) && (rep.winRate.value ?? 0) > branchBest);
   const gapPoints = nextAbove ? ((nextAbove.winRate.value ?? 0) - branchBest) * 100 : null;
-  const allAtBottom = rankable.slice(0, branchReps.length).every(inBranch);
+  /*
+   * The claim is statistical: several people do not independently land at the
+   * bottom of a distribution. With one or two reps that is simply not true —
+   * somebody has to be last — so the sentence is withheld below three rather
+   * than emitted as "1 individuals do not independently arrive".
+   */
+  const MIN_REPS_FOR_SYSTEMIC_CLAIM = 3;
+  const allAtBottom =
+    branchReps.length >= MIN_REPS_FOR_SYSTEMIC_CLAIM &&
+    rankable.slice(0, branchReps.length).every(inBranch);
 
   return (
     <div className="dist-wrap" style={{ padding: 'var(--s4) var(--s4) var(--s2)', borderBottom: '1px solid var(--rule)' }}>
@@ -464,8 +486,9 @@ export function DistributionStrip({
         </p>
       ) : (
         <p className="t-small" style={{ marginTop: 6 }}>
-          {branchName.replace(' Toyota', '')}&rsquo;s officers are spread through the company distribution;
-          the lowest sits at rank {branchWorstRank + 1} of {rankable.length}.
+          {branchName.replace(' Toyota', '')}&rsquo;s{' '}
+          {branchReps.length === 1 ? 'officer sits' : 'officers are spread through the company distribution; the lowest sits'}{' '}
+          at rank {branchWorstRank + 1} of {rankable.length}.
         </p>
       )}
     </div>
@@ -603,10 +626,13 @@ export function RepTable({
                       href={`${basePath}${hrefWithFilters('', filters, { sort: column.key, dir: nextDir })}`}
                       className="sortbtn"
                       data-active={active ? 'true' : 'false'}
+                      data-dir={active ? dir : undefined}
                       scroll={false}
                     >
                       {column.label}
-                      {active ? <span aria-hidden="true">{dir === 'asc' ? '↑' : '↓'}</span> : null}
+                      <span className={active ? 'arrow' : 'arrow is-idle'} aria-hidden="true">
+                        ↓
+                      </span>
                     </Link>
                   </th>
                 );

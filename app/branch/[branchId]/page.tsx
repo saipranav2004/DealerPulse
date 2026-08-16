@@ -81,7 +81,7 @@ export default async function BranchPage({
   if (!branch) notFound();
 
   // The branch axis cannot apply on a route already scoped to one branch.
-  const state = withoutBranchScope(parseFilterState(query, dataset.branches.map((b) => b.id)));
+  const state = withoutBranchScope(parseFilterState(query, dataset.branches.map((b) => b.id), 'cohort'));
   const viewAs = parseViewAs(query, dataset.branches.map((b) => b.id));
   const filters = toFilters(state);
   const basePath = `/branch/${branchId}`;

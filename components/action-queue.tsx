@@ -31,9 +31,27 @@ export interface QueueRowData {
   href: string;
 }
 
-type ActedState = Record<string, string>;
+/**
+ * What was done to a row, and when.
+ *
+ * v1 stored a bare label string. Keeping the timestamp lets a snooze expire on
+ * its own instead of hiding a lead forever, and lets the handled list be sorted
+ * by recency when a manager wants to undo the last thing they did.
+ */
+export interface ActedEntry {
+  label: string;
+  at: number;
+  /** Set for a snooze: the row returns to the queue after this instant. */
+  until?: number;
+}
 
-const STORAGE_KEY = 'dealerpulse.queue.actions.v1';
+type ActedState = Record<string, ActedEntry>;
+
+const STORAGE_KEY = 'dealerpulse.queue.actions.v2';
+const LEGACY_KEY = 'dealerpulse.queue.actions.v1';
+
+const SNOOZE_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Rows shown at once. This dataset's largest queue is 47, but a real dealer
@@ -44,23 +62,45 @@ const STORAGE_KEY = 'dealerpulse.queue.actions.v1';
  */
 const PAGE_SIZE = 25;
 
+/** Read one entry defensively; anything unrecognised is discarded, not trusted. */
+function readEntry(value: unknown): ActedEntry | null {
+  if (typeof value === 'string') return { label: value, at: 0 }; // v1 record
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    if (typeof record.label === 'string') {
+      return {
+        label: record.label,
+        at: typeof record.at === 'number' ? record.at : 0,
+        until: typeof record.until === 'number' ? record.until : undefined,
+      };
+    }
+  }
+  return null;
+}
+
 function loadActed(): ActedState {
   if (typeof window === 'undefined') return {};
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed: unknown = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return Object.fromEntries(
-        Object.entries(parsed as Record<string, unknown>).filter(
-          (entry): entry is [string, string] => typeof entry[1] === 'string',
-        ),
-      );
+  const out: ActedState = {};
+  for (const key of [LEGACY_KEY, STORAGE_KEY]) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+      for (const [leadId, value] of Object.entries(parsed as Record<string, unknown>)) {
+        const entry = readEntry(value);
+        if (entry) out[leadId] = entry;
+      }
+    } catch {
+      // A corrupt or unavailable store must never break the queue.
     }
-  } catch {
-    // A corrupt or unavailable store must never break the queue.
   }
-  return {};
+  // An expired snooze is not a decision — the row comes back on its own.
+  const now = Date.now();
+  for (const [leadId, entry] of Object.entries(out)) {
+    if (entry.until !== undefined && entry.until <= now) delete out[leadId];
+  }
+  return out;
 }
 
 function csvEscape(value: string): string {
@@ -82,12 +122,28 @@ export function ActionQueue({
   const [acted, setActed] = useState<ActedState>({});
   const [hydrated, setHydrated] = useState(false);
   const [page, setPage] = useState(1);
+  const [showHandled, setShowHandled] = useState(false);
+  /** The last action, kept so it can be undone in one click. */
+  const [lastAction, setLastAction] = useState<{ label: string; ids: string[] } | null>(null);
 
-  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  /*
+   * Handled rows leave the queue. A counter that never falls is the reason a
+   * work queue stops being opened; the rows are one toggle away, not gone.
+   */
+  const handledIds = useMemo(
+    () => new Set(rows.filter((row) => acted[row.leadId]).map((row) => row.leadId)),
+    [rows, acted],
+  );
+  const visibleRows = useMemo(
+    () => (showHandled ? rows : rows.filter((row) => !handledIds.has(row.leadId))),
+    [rows, showHandled, handledIds],
+  );
+
+  const pageCount = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageRows = useMemo(
-    () => rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [rows, safePage],
+    () => visibleRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [visibleRows, safePage],
   );
 
   // A filter change can shorten the queue under a reader who has paged forward.
@@ -95,6 +151,11 @@ export function ActionQueue({
     setPage(1);
     setSelected(new Set());
   }, [rows]);
+
+  // Acting on a row can empty the page it was on.
+  useEffect(() => {
+    setPage((current) => Math.min(current, Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE))));
+  }, [visibleRows.length]);
 
   useEffect(() => {
     setActed(loadActed());
@@ -132,23 +193,34 @@ export function ActionQueue({
   const selectedValue = selectedRows.reduce((sum, row) => sum + row.dealValue, 0);
 
   const apply = useCallback(
-    (label: string, ids: string[]) => {
+    (label: string, ids: string[], snooze = false) => {
+      const now = Date.now();
       const next = { ...acted };
-      for (const id of ids) next[id] = label;
+      for (const id of ids) {
+        next[id] = { label, at: now, until: snooze ? now + SNOOZE_DAYS * DAY_MS : undefined };
+      }
       persist(next);
       setSelected(new Set());
+      setLastAction({ label, ids });
     },
     [acted, persist],
   );
 
   const undo = useCallback(
-    (leadId: string) => {
+    (ids: string[]) => {
       const next = { ...acted };
-      delete next[leadId];
+      for (const id of ids) delete next[id];
       persist(next);
+      setLastAction(null);
     },
     [acted, persist],
   );
+
+  const resetAll = useCallback(() => {
+    persist({});
+    setLastAction(null);
+    setShowHandled(false);
+  }, [persist]);
 
   const exportCsv = useCallback(
     (which: QueueRowData[]) => {
@@ -180,7 +252,7 @@ export function ActionQueue({
     [queueName],
   );
 
-  const remaining = rows.filter((row) => !acted[row.leadId]).length;
+  const remaining = rows.length - handledIds.size;
 
   if (rows.length === 0) {
     return (
@@ -221,11 +293,18 @@ export function ActionQueue({
             <button type="button" className="btn" onClick={() => apply('Assigned', [...selected])}>
               Assign
             </button>
-            <button type="button" className="btn" onClick={() => apply('Snoozed 7 days', [...selected])}>
-              Snooze 7 days
+            <button
+              type="button"
+              className="btn"
+              onClick={() => apply(`Snoozed ${SNOOZE_DAYS} days`, [...selected], true)}
+            >
+              Snooze {SNOOZE_DAYS} days
             </button>
             <button type="button" className="btn" onClick={() => apply('Marked contacted', [...selected])}>
               Mark contacted
+            </button>
+            <button type="button" className="btn" onClick={() => apply('Dismissed', [...selected])}>
+              Dismiss
             </button>
             <button type="button" className="btn" onClick={() => exportCsv(selectedRows)}>
               Export
@@ -313,8 +392,8 @@ export function ActionQueue({
               <span className="q-act">
                 {actedLabel ? (
                   <>
-                    <span className="chip chip-pos">{actedLabel}</span>
-                    <button type="button" className="btn btn-quiet btn-sm" onClick={() => undo(row.leadId)}>
+                    <span className="chip chip-pos">{actedLabel.label}</span>
+                    <button type="button" className="btn btn-quiet btn-sm" onClick={() => undo([row.leadId])}>
                       Undo
                     </button>
                   </>
@@ -343,9 +422,28 @@ export function ActionQueue({
           }}
         >
           <p className="t-micro">
-            Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, rows.length)} of{' '}
-            {rows.length} · {remaining} still need a decision
+            {visibleRows.length === 0
+              ? 'Every item here has been handled'
+              : `Showing ${(safePage - 1) * PAGE_SIZE + 1}–${Math.min(
+                  safePage * PAGE_SIZE,
+                  visibleRows.length,
+                )} of ${visibleRows.length}`}
+            {' · '}
+            <b>{remaining}</b> still {remaining === 1 ? 'needs' : 'need'} a decision
           </p>
+          {hydrated && handledIds.size > 0 ? (
+            <button
+              type="button"
+              className="btn btn-sm"
+              aria-pressed={showHandled}
+              onClick={() => {
+                setShowHandled((current) => !current);
+                setPage(1);
+              }}
+            >
+              {showHandled ? 'Hide' : 'Show'} handled ({handledIds.size})
+            </button>
+          ) : null}
           <span className="sp" />
           {pageCount > 1 ? (
             <span className="pager" style={{ gap: 6 }}>
@@ -373,8 +471,44 @@ export function ActionQueue({
           <button type="button" className="btn btn-sm" onClick={() => exportCsv(rows)}>
             Export all {rows.length}
           </button>
+          {hydrated && handledIds.size > 0 ? (
+            <details className="menu" data-filter-menu="">
+              <summary className="btn btn-sm">Reset</summary>
+              <div className="menu-pop to-right" style={{ padding: 'var(--s3)', minWidth: 240 }}>
+                <p className="t-small" style={{ marginBottom: 'var(--s3)' }}>
+                  Clears every action recorded in this browser and returns{' '}
+                  <span className="num">{handledIds.size}</span>{' '}
+                  {handledIds.size === 1 ? 'item' : 'items'} to the queue.
+                </p>
+                <button type="button" className="btn btn-primary btn-sm" onClick={resetAll}>
+                  Reset all actions
+                </button>
+              </div>
+            </details>
+          ) : null}
         </div>
       </div>
+
+      {/*
+        One-click undo for the action just taken. It is a strip rather than a
+        floating toast: a work queue is read top to bottom, and a control that
+        disappears on a timer is a control a careful user cannot rely on.
+      */}
+      {hydrated && lastAction !== null ? (
+        <div className="undo-bar" role="status">
+          <span>
+            <b>{lastAction.label}</b> · {lastAction.ids.length}{' '}
+            {lastAction.ids.length === 1 ? 'item' : 'items'}
+          </span>
+          <span className="sp" />
+          <button type="button" className="btn btn-sm" onClick={() => undo(lastAction.ids)}>
+            Undo
+          </button>
+          <button type="button" className="btn btn-sm btn-quiet" onClick={() => setLastAction(null)}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
 
       {hydrated && Object.keys(acted).length > 0 ? (
         <div
@@ -392,7 +526,10 @@ export function ActionQueue({
             <circle cx="4" cy="4" r="3.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
           </svg>
           <p className="t-micro warn">
-            Saved in this browser only — DealerPulse has no write access to the dealer management system yet.
+            <b>{Object.keys(acted).length}</b> {Object.keys(acted).length === 1 ? 'action' : 'actions'} saved
+            in this browser only. A snooze returns on its own after {SNOOZE_DAYS} days; everything else stays
+            until you reset it. DealerPulse has no write access to the dealer management system, so none of
+            this reaches a colleague&rsquo;s screen.
           </p>
         </div>
       ) : null}

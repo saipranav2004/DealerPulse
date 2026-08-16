@@ -14,43 +14,87 @@ import type { SourcesResult } from '@/lib/analytics/sources';
 import type { TrendSummary } from '@/lib/analytics/cohorts';
 import type { MomentumResult } from '@/lib/analytics/momentum';
 import type { TargetsResult } from '@/lib/analytics/targets';
-import type { Verdict } from '@/lib/analytics/verdict';
+import type { ValueRange, Verdict, VerdictAbstention } from '@/lib/analytics/verdict';
 import type { ForecastResult } from '@/lib/analytics/forecast';
 import { TrendChart, type TrendPoint } from '@/components/charts';
 import {
+  counted,
   formatCompactNumber,
   formatCurrency,
   formatMonthKey,
   formatNumber,
   formatPercentValue,
   formatSignedPercent,
+  plural,
 } from '@/lib/format';
-import { SOURCE_LABELS, hrefWithFilters, type FilterState } from '@/lib/url-filters';
+import {
+  SOURCE_LABELS,
+  hrefWithFilters,
+  type FilterState,
+  type PeriodBasis,
+} from '@/lib/url-filters';
 import { Bar, DeltaPoints, Glyph, LowN, MicroBars, Panel, Rail, RateText, Sparkline, pct } from '@/components/ui';
 
 /* -------------------------------------------------------------------------- */
 
+/** Names each end of a money range, so a hover says which basis produced it. */
+function rangeTitle(range: ValueRange): string {
+  return `${formatCurrency(range.low)} at the ${range.lowBasis}; ${formatCurrency(range.high)} at the ${range.highBasis}`;
+}
+
 export function VerdictBand({
   verdict,
+  abstention,
   branches,
   filters,
 }: {
   verdict: Verdict | null;
+  abstention: VerdictAbstention | null;
   branches: BranchesResult;
   filters: FilterState;
 }) {
   if (!verdict) {
+    /*
+     * "No branch is materially behind" reads as an all-clear, and on a thin
+     * window that is a claim the data cannot support. The two cases are now
+     * told apart and worded differently.
+     */
+    const reason = abstention?.reason ?? 'insufficient-sample';
+    const belowFloor = abstention?.belowFloor ?? 0;
+    const total = branches.branches.length;
+    const headline =
+      reason === 'no-branch-behind'
+        ? 'No branch is materially behind the group on this selection.'
+        : reason === 'not-enough-branches'
+          ? 'Only one branch is in view, so there is nothing to compare it against.'
+          : 'Not enough leads in this window to name a branch.';
     return (
       <section className="verdict">
         <p className="t-eyebrow" style={{ marginBottom: 12 }}>
           Finding
         </p>
-        <p className="t-verdict verdict-sentence">
-          No branch is materially behind the group on this selection.
-        </p>
+        <p className="t-verdict verdict-sentence">{headline}</p>
         <p className="verdict-sub">
-          Either the filters have narrowed the data below what a comparison needs, or performance is
-          genuinely even. Widen the period or clear a filter to compare the full book.
+          {reason === 'no-branch-behind' ? (
+            <>
+              Every branch clears the sample floor here and none is meaningfully behind the group. That is a
+              genuine result, not a gap in the data.
+            </>
+          ) : reason === 'not-enough-branches' ? (
+            <>
+              This finding names the branch furthest below its peers, which needs at least two branches with
+              enough leads to rate. Clear the branch filter to compare the full book.
+            </>
+          ) : (
+            <>
+              Naming the worst branch means having cleared the others, and{' '}
+              <span className="fig">{belowFloor}</span> of <span className="fig">{total}</span>{' '}
+              {plural(total, 'branch', 'branches')}{' '}
+              {plural(belowFloor, 'sits', 'sit')} below the{' '}
+              <span className="fig">{abstention?.floor ?? 30}</span>-lead floor a verdict requires — a branch
+              too small to rate is also too small to exonerate. Widen the period to compare the full book.
+            </>
+          )}
         </p>
       </section>
     );
@@ -91,8 +135,8 @@ export function VerdictBand({
               {/* Both ends carry their own symbol: stripping it from the second
                   meant reformatting currency here, and currency has exactly one
                   formatter in this codebase. */}
-              <p className="impact-val num">
-                {formatCurrency(verdict.firstContactValueLow)} – {formatCurrency(verdict.firstContactValueHigh)}
+              <p className="impact-val num" title={rangeTitle(verdict.firstContact)}>
+                {formatCurrency(verdict.firstContact.low)} – {formatCurrency(verdict.firstContact.high)}
               </p>
               <p className="t-micro">
                 Calling the {formatPercentValue(verdict.neverContactedShare, 0)} nobody calls, at the branch&rsquo;s
@@ -101,8 +145,8 @@ export function VerdictBand({
             </div>
             <div className="impact-cell is-focus">
               <p className="t-label">Fix the whole funnel</p>
-              <p className="impact-val num">
-                {formatCurrency(verdict.recoverableValueLow)} – {formatCurrency(verdict.recoverableValueHigh)}
+              <p className="impact-val num" title={rangeTitle(verdict.recoverable)}>
+                {formatCurrency(verdict.recoverable.low)} – {formatCurrency(verdict.recoverable.high)}
               </p>
               <p className="t-micro">
                 Matching the other branches at every step. First contact is where most of those leads go.
@@ -152,8 +196,9 @@ export function VerdictBand({
             className="t-micro"
             style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--rule)' }}
           >
-            {verdict.neverContacted} of {verdict.leads} {verdict.branchName.replace(' Toyota', '')} leads have
-            no <code>contacted</code> event in their history.
+            {verdict.neverContacted} of {verdict.leads} {verdict.branchName.replace(' Toyota', '')}{' '}
+            {plural(verdict.leads, 'lead')} {plural(verdict.neverContacted, 'has', 'have')} no{' '}
+            <code>contacted</code> event in their history.
           </p>
         </div>
       </div>
@@ -163,6 +208,36 @@ export function VerdictBand({
 
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A vital sign that opens the rows behind it.
+ *
+ * This is the highest-value affordance on the product: a KPI a reader cannot
+ * drill into is a number they have to take on trust. Every card links to the
+ * `/leads` slice that produces it, so the evidence is one click away.
+ */
+function Vital({
+  href,
+  label,
+  className = 'vital',
+  children,
+}: {
+  href: string;
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <Link href={href} className="vital-link" aria-label={`${label} — open the leads behind this`}>
+        {children}
+        <span className="vital-go" aria-hidden="true">
+          See the leads behind this →
+        </span>
+      </Link>
+    </div>
+  );
+}
+
 export function VitalSigns({
   kpis,
   revenueSeries,
@@ -171,6 +246,7 @@ export function VitalSigns({
   stalled,
   stalledByBranch,
   revenueDelta,
+  filters,
 }: {
   kpis: KpiSet;
   revenueSeries: number[];
@@ -179,13 +255,14 @@ export function VitalSigns({
   stalled: QueueSummary;
   stalledByBranch: number[];
   revenueDelta: number | null;
+  filters: FilterState;
 }) {
   const winScale = 0.45;
   const openMax = Math.max(...kpis.openByStage.map((s) => s.count), 1);
 
   return (
     <section className="vitals" aria-label="Vital signs">
-      <div className="vital">
+      <Vital href={hrefWithFilters('/leads', filters, { status: 'delivered' })} label="Delivered revenue">
         <div className="vital-hd">
           <h2 className="t-label">Delivered revenue</h2>
         </div>
@@ -203,9 +280,9 @@ export function VitalSigns({
           )}
           <Sparkline values={revenueSeries} label="Delivered revenue by month" />
         </div>
-      </div>
+      </Vital>
 
-      <div className="vital">
+      <Vital href={hrefWithFilters('/leads', filters, { status: 'delivered' })} label="Leads that became a sale">
         <div className="vital-hd">
           {/* "Win rate" hides its denominator. Every lead is the denominator
               here, not every quote or every test drive. */}
@@ -218,7 +295,7 @@ export function VitalSigns({
         </p>
         <div className="vital-ft">
           <span className="t-micro num">
-            {formatNumber(kpis.deliveredUnits)} delivered of {formatNumber(kpis.totalLeads)} leads
+            {formatNumber(kpis.deliveredUnits)} delivered of {counted(kpis.totalLeads, 'lead')}
           </span>
           <svg width="64" height="20" viewBox="0 0 64 20" role="img" aria-label="Share of leads that became a sale, per branch, on a shared scale">
             <line x1="0" y1="10" x2="64" y2="10" stroke="var(--c-grid)" strokeWidth="2" />
@@ -235,9 +312,9 @@ export function VitalSigns({
             )}
           </svg>
         </div>
-      </div>
+      </Vital>
 
-      <div className="vital">
+      <Vital href={hrefWithFilters('/leads', filters, { status: 'open' })} label="Open pipeline">
         <div className="vital-hd">
           <h2 className="t-label">Open pipeline</h2>
         </div>
@@ -263,9 +340,9 @@ export function VitalSigns({
             })}
           </svg>
         </div>
-      </div>
+      </Vital>
 
-      <div className="vital is-risk">
+      <Vital href={hrefWithFilters('/leads', filters, { status: 'stalled' })} label="Money at risk" className="vital is-risk">
         <div className="vital-hd">
           <span className="crit" aria-hidden="true">
             <Glyph kind="critical" />
@@ -280,23 +357,23 @@ export function VitalSigns({
         </p>
         <div className="vital-ft">
           <span className="t-micro num">
-            {stalled.count} orders
+            {counted(stalled.count, 'order')}
             {stalled.oldestAgeDays !== null ? ` · to ${stalled.oldestAgeDays} d` : ''}
           </span>
           <MicroBars values={stalledByBranch} label="Stalled orders by branch" />
         </div>
-      </div>
+      </Vital>
 
       {/* Sitting beside "Money at risk", a bare count read as a work queue.
           It is not one: almost all of these leads are already lost, and only
           the still-open remainder can be called today. */}
-      <div className="vital vital-hide-md">
+      <Vital href={hrefWithFilters('/leads', filters, { status: 'uncontacted' })} label="Never called" className="vital vital-hide-md">
         <div className="vital-hd">
           <h2 className="t-label">Never called</h2>
         </div>
         <p className="vital-val">
           <span className="t-metric">{formatNumber(kpis.neverContactedCount)}</span>
-          <span className="unit">leads</span>
+          <span className="unit">{plural(kpis.neverContactedCount, 'lead')}</span>
         </p>
         <div className="vital-ft">
           {kpis.neverContactedRate.value === null ? (
@@ -313,7 +390,7 @@ export function VitalSigns({
             label="Leads never contacted, by month created"
           />
         </div>
-      </div>
+      </Vital>
     </section>
   );
 }
@@ -591,17 +668,35 @@ export function MomentumStrip({ momentum }: { momentum: MomentumResult }) {
       footer={
         momentum.monthsOfPipeline !== null && momentum.paceDeliveries !== null ? (
           <p className="t-micro">
-            At the pace of the last {momentum.paceMonths} months —{' '}
+            At the pace of the last <span className="num">{momentum.paceMonths}</span>{' '}
+            {plural(momentum.paceMonths, 'month')} —{' '}
             <span className="num">{formatNumber(momentum.paceDeliveries)}</span> cars a month, median — the
             open pipeline is about{' '}
             <strong style={{ color: 'var(--ink)' }}>
-              <span className="num">{momentum.monthsOfPipeline.toFixed(1)}</span> months
+              <span className="num">{momentum.monthsOfPipeline.toFixed(1)}</span>{' '}
+              {momentum.monthsOfPipeline.toFixed(1) === '1.0' ? 'month' : 'months'}
             </strong>{' '}
             of delivery work. A median is used, not an average: one exceptional month should not set the
             expectation for every future one.
           </p>
         ) : (
-          <p className="t-micro">Not enough completed months to state a reliable pace.</p>
+          /* Two months cannot produce a median worth the name. The months are
+             printed instead, which is both honest and more informative. */
+          <p className="t-micro">
+            {momentum.paceSeries.length > 0 ? (
+              <>
+                Too few months in this window to set a pace —{' '}
+                <span className="num">
+                  {momentum.paceSeries
+                    .map((point) => `${formatMonthKey(point.month).split(' ')[0]} ${point.deliveries}`)
+                    .join(' · ')}
+                </span>
+                . Widen the period for a pipeline-months figure.
+              </>
+            ) : (
+              <>No deliveries in this window, so there is no pace to state.</>
+            )}
+          </p>
         )
       }
     >
@@ -649,6 +744,28 @@ export function ForecastPanel({ forecast, filters }: { forecast: ForecastResult;
     return (
       <Panel title="What is still coming" className="c6 ord-forecast">
         <p className="t-small">No open leads on this selection, so there is nothing left to forecast.</p>
+      </Panel>
+    );
+  }
+
+  /* Withheld rather than published as zero — see `basisTooThin`. */
+  if (forecast.basisTooThin) {
+    return (
+      <Panel
+        title="What is still coming"
+        subtitle="Not enough completed journeys on this selection to weight the pipeline"
+        className="c6 ord-forecast"
+      >
+        <p className="t-small">
+          <span className="num">{formatNumber(forecast.openCount)}</span> open leads worth{' '}
+          <span className="num">{formatCurrency(forecast.openValue)}</span> are still in play, but the
+          narrowest conversion step here rests on{' '}
+          <span className="num">{formatNumber(forecast.weakestBasis)}</span> leads. A forecast built on that
+          would read as confidence this selection cannot support, so it is withheld.
+        </p>
+        <p className="t-micro" style={{ marginTop: 'var(--s3)' }}>
+          Widen the period to weight these leads against enough completed journeys.
+        </p>
       </Panel>
     );
   }
@@ -746,9 +863,11 @@ export function ForecastPanel({ forecast, filters }: { forecast: ForecastResult;
 export function RevenueTrend({
   points,
   summary,
+  basis,
 }: {
   points: TrendPoint[];
   summary: TrendSummary | null;
+  basis: PeriodBasis;
 }) {
   if (points.length < 2) return null;
   const latestLabel = points[points.length - 1].shortLabel;
@@ -756,7 +875,11 @@ export function RevenueTrend({
   return (
     <Panel
       title="Revenue delivered each month"
-      subtitle="Cars handed over, by the month they were handed over"
+      subtitle={
+        basis === 'cohort'
+          ? 'Deliveries from leads created in this period — delivery months may fall outside it'
+          : 'Cars handed over, by the month they were handed over'
+      }
       className="c6 ord-die"
       aside={
         /* Month on month, not first to last. A trough-to-peak percentage on a
@@ -792,11 +915,20 @@ export function RevenueTrend({
 /* -------------------------------------------------------------------------- */
 
 export function SourceTable({ sources }: { sources: SourcesResult }) {
-  const worst = sources.sources.reduce<{ id: string; value: number } | null>((low, row) => {
-    const value = row.winRate.value;
-    if (value === null) return low;
+  /*
+   * A superlative is only true over the rows that were actually compared.
+   *
+   * "Walk-in converts worst on this selection" was emitted with four of six
+   * source rows suppressed — it was worst of two, and the sentence did not say
+   * so. Any "worst"/"best" claim now carries the size of its comparison set,
+   * and is withheld entirely when fewer than two rows can be rated.
+   */
+  const rated = sources.sources.filter((row) => row.winRate.value !== null);
+  const worst = rated.reduce<{ id: string; value: number } | null>((low, row) => {
+    const value = row.winRate.value as number;
     return low === null || value < low.value ? { id: row.source, value } : low;
   }, null);
+  const comparable = rated.length >= 2;
 
   return (
     <Panel
@@ -805,10 +937,18 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
       className="c6 ord-source"
       padded={false}
       footer={
-        worst ? (
+        worst && comparable ? (
           <p className="t-micro">
             <strong style={{ color: 'var(--ink)' }}>{SOURCE_LABELS[worst.id as keyof typeof SOURCE_LABELS]}</strong>{' '}
-            converts worst on this selection. Either the leads are unqualified or nobody is calling them back.
+            converts worst of the <span className="num">{rated.length}</span>{' '}
+            {rated.length === 1 ? 'source' : 'sources'} with enough volume to rate
+            {rated.length < sources.sources.length ? (
+              <>
+                {' '}
+                (<span className="num">{sources.sources.length - rated.length}</span> withheld)
+              </>
+            ) : null}
+            . Either the leads are unqualified or nobody is calling them back.
           </p>
         ) : undefined
       }
@@ -832,7 +972,7 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
           </thead>
           <tbody>
             {sources.sources.map((row) => {
-              const isWorst = worst !== null && row.source === worst.id;
+              const isWorst = comparable && worst !== null && row.source === worst.id;
               return (
                 <tr key={row.source} style={isWorst ? { background: 'var(--warning-wash)' } : undefined}>
                   <td style={{ paddingLeft: 16, fontWeight: isWorst ? 600 : undefined }}>
@@ -865,7 +1005,15 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
 export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult; totalLeads: number }) {
   const targetUnits = targets.group.targetUnits;
   const delivered = targets.group.deliveredUnits;
-  const attainment = targets.group.revenueAttainment;
+  /*
+   * Two attainments, never merged.
+   *
+   * The panel used to read "attainment 9.7% — 19 delivered against 189
+   * targeted units". 19/189 is 10.1%; 9.7% was the *revenue* ratio. A sentence
+   * about units must not carry a revenue number.
+   */
+  const unitAttainment = targets.group.unitAttainment;
+  const revenueAttainment = targets.group.revenueAttainment;
   const ceilingUnreachable = targetUnits > totalLeads;
 
   return (
@@ -892,10 +1040,17 @@ export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult
                 The target cannot be reached at any performance level.
               </p>
               <p className="t-micro">
-                Attainment reads{' '}
-                <span className="num">{attainment === null ? '—' : formatPercentValue(attainment)}</span> —{' '}
-                {formatNumber(delivered)} delivered against {formatNumber(targetUnits)} targeted units — but
-                that percentage measures the plan, not the floor.
+                Units{' '}
+                <span className="num">
+                  {unitAttainment === null ? '—' : formatPercentValue(unitAttainment)}
+                </span>{' '}
+                ({formatNumber(delivered)} of {formatNumber(targetUnits)}) · Revenue{' '}
+                <span className="num">
+                  {revenueAttainment === null ? '—' : formatPercentValue(revenueAttainment)}
+                </span>{' '}
+                ({formatCurrency(targets.group.deliveredRevenue)} of{' '}
+                {formatCurrency(targets.group.targetRevenue)}) — but both percentages measure the plan, not
+                the floor.
               </p>
             </>
           ) : (
@@ -903,12 +1058,27 @@ export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult
               <h2 className="t-label" style={{ marginBottom: 6 }}>
                 Target attainment
               </h2>
-              <span className="t-metric-s muted">
-                {attainment === null ? '—' : formatPercentValue(attainment)}
-              </span>
-              <p className="t-micro" style={{ marginTop: 8 }}>
-                {formatNumber(delivered)} delivered against {formatNumber(targetUnits)} targeted units
-              </p>
+              <div style={{ display: 'flex', gap: 'var(--s5)', flexWrap: 'wrap' }}>
+                <div>
+                  <p className="t-micro">Units</p>
+                  <span className="t-metric-s muted">
+                    {unitAttainment === null ? '—' : formatPercentValue(unitAttainment)}
+                  </span>
+                  <p className="t-micro" style={{ marginTop: 2 }}>
+                    {formatNumber(delivered)} of {formatNumber(targetUnits)}
+                  </p>
+                </div>
+                <div>
+                  <p className="t-micro">Revenue</p>
+                  <span className="t-metric-s muted">
+                    {revenueAttainment === null ? '—' : formatPercentValue(revenueAttainment)}
+                  </span>
+                  <p className="t-micro" style={{ marginTop: 2 }}>
+                    {formatCurrency(targets.group.deliveredRevenue)} of{' '}
+                    {formatCurrency(targets.group.targetRevenue)}
+                  </p>
+                </div>
+              </div>
             </>
           )}
         </div>
@@ -949,8 +1119,9 @@ export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult
           <p className="t-small" style={{ maxWidth: '84ch' }}>
             {ceilingUnreachable ? (
               <>
-                The target totals <span className="num">{formatNumber(targetUnits)}</span> units. Only{' '}
-                <span className="num">{formatNumber(totalLeads)}</span> leads were created in the same period.
+                The target totals <span className="num">{counted(targetUnits, 'unit')}</span>. Only{' '}
+                <span className="num">{formatNumber(totalLeads)}</span> {plural(totalLeads, 'lead')}{' '}
+                {plural(totalLeads, 'was', 'were')} created in the same period.
                 Even if every single lead became a sale the group could deliver {formatNumber(totalLeads)} — the
                 target is{' '}
                 <strong>{formatCompactNumber(targetUnits / Math.max(1, totalLeads), 1)}× total lead volume</strong> and

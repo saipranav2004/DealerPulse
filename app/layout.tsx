@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
+import { BUILD_SHA, DATA_CURRENT_AS_OF } from '@/lib/build-info';
 import './globals.css';
 
 const plexSans = localFont({
@@ -69,6 +70,18 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to content
         </a>
         {children}
+        {/*
+          Which build produced this page, and which data it was built from.
+          Two URLs from the same deploy must show the same stamp; when they
+          did not, nothing on the page said so.
+        */}
+        <footer className="appfoot">
+          <span className="num">build {BUILD_SHA}</span>
+          <span aria-hidden="true">·</span>
+          <span className="num">data {DATA_CURRENT_AS_OF}</span>
+          <span aria-hidden="true">·</span>
+          <a href="/method">How every figure is calculated</a>
+        </footer>
       </body>
     </html>
   );

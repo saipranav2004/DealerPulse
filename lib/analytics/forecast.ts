@@ -17,7 +17,7 @@ import { computeFunnel } from '@/lib/analytics/funnel';
 import { selectLeads } from '@/lib/filters';
 import { isOpen, isStalledOrder } from '@/lib/lead';
 import { sumBy } from '@/lib/stats';
-import { NOW } from '@/lib/data';
+import { MIN_RATE_DENOMINATOR, NOW } from '@/lib/data';
 import type { Dataset } from '@/lib/data';
 import { FUNNEL_STEPS } from '@/lib/types';
 import type { Filters, FunnelStage, Scope } from '@/lib/types';
@@ -36,6 +36,18 @@ export interface StageForecast {
 
 export interface ForecastResult {
   stages: StageForecast[];
+  /**
+   * True when the conversion rates behind the weights rest on too few
+   * observations to publish.
+   *
+   * A one-month calendar window contains no completed journeys, so every step
+   * conversion is 0 and the forecast reads "₹0 to ₹0 · 0% likely" over leads
+   * genuinely worth lakhs. That is not a forecast of zero, it is the absence of
+   * a forecast, and the two must not look alike.
+   */
+  basisTooThin: boolean;
+  /** Smallest step denominator behind the weights, for the caveat. */
+  weakestBasis: number;
   openCount: number;
   openValue: number;
   /** Central estimate: every open lead weighted by its stage probability. */
@@ -130,8 +142,14 @@ export function computeForecast(
 
   const overdue = open.filter((lead) => lead.expectedCloseDate.getTime() < NOW.getTime());
 
+  // The weakest denominator anywhere in the chain governs the whole forecast:
+  // one thin step makes every downstream probability unpublishable.
+  const weakestBasis = stages.length > 0 ? Math.min(...stages.map((stage) => stage.basisCount)) : 0;
+
   return {
     stages,
+    basisTooThin: stages.length > 0 && weakestBasis < MIN_RATE_DENOMINATOR,
+    weakestBasis,
     openCount: open.length,
     openValue: sumBy(open, (lead) => lead.dealValue),
     expectedDeliveries,

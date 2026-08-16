@@ -265,9 +265,17 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                                 href={tableHref({ sort: column.key, dir: nextDir, page: undefined })}
                                 className="sortbtn"
                                 data-active={active ? 'true' : 'false'}
+                                data-dir={active ? dir : undefined}
                               >
                                 {column.label}
-                                {active ? <span aria-hidden="true">{dir === 'asc' ? '↑' : '↓'}</span> : null}
+                                {/* One glyph that rotates, so a direction flip
+                                    reads as a change of state rather than a
+                                    swapped icon. Inactive columns show it
+                                    faintly on hover so sortability is
+                                    discoverable at all. */}
+                                <span className={active ? 'arrow' : 'arrow is-idle'} aria-hidden="true">
+                                  ↓
+                                </span>
                               </Link>
                             </th>
                           );
