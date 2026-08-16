@@ -17,6 +17,7 @@ import { formatCurrency, formatNumber } from '@/lib/format';
 import {
   hrefWithFilters,
   parseFilterState,
+  parseViewAs,
   toFilters,
   toQueryString,
   type SearchParams,
@@ -29,6 +30,7 @@ import { Glyph } from '@/components/ui';
 import type { QueueItem } from '@/lib/analytics/actionCenter';
 
 type QueueId = 'stalled' | 'cold' | 'delays';
+const QUEUE_IDS: QueueId[] = ['stalled', 'cold', 'delays'];
 
 const STAGE_LABEL: Record<string, string> = {
   new: 'new',
@@ -65,12 +67,16 @@ export default async function ActionCenterPage({
 }) {
   const query = await searchParams;
   const dataset = getDataset();
-  const state = parseFilterState(query, dataset.branches.map((b) => b.id));
+  const baseState = parseFilterState(query, dataset.branches.map((b) => b.id));
+  const viewAs = parseViewAs(query, dataset.branches.map((b) => b.id));
+  // A role is authoritative, not decorative: a branch manager's view is
+  // scoped to their branch even if the branch parameter is missing.
+  const state = viewAs ? { ...baseState, branchIds: [viewAs] } : baseState;
   const filters = toFilters(state);
   const basePath = '/actions';
 
   const queueParam = typeof query.q === 'string' ? query.q : 'stalled';
-  const queue: QueueId = queueParam === 'cold' || queueParam === 'delays' ? queueParam : 'stalled';
+  const queue: QueueId = QUEUE_IDS.includes(queueParam as QueueId) ? (queueParam as QueueId) : 'stalled';
 
   const leads = selectLeads(dataset, filters);
   const actions = computeActionCenter(dataset, filters);
@@ -86,13 +92,21 @@ export default async function ActionCenterPage({
       item,
       'Chase delivery',
       hrefWithFilters(basePath, state, { q: 'stalled', lead: item.leadId }),
-      `Order placed ${DATE.format(item.enteredAt)} · no delivery record`,
+      item.daysPastPromise !== null
+        ? `Order placed ${DATE.format(item.enteredAt)} · no delivery record · ${item.daysPastPromise} d past the promised date`
+        : `Order placed ${DATE.format(item.enteredAt)} · no delivery record`,
     ),
   );
   const coldRows = actions.cold.items.map((item) =>
-    toRow(item, 'Call today', hrefWithFilters(basePath, state, { q: 'cold', lead: item.leadId })),
+    toRow(
+      item,
+      'Call today',
+      hrefWithFilters(basePath, state, { q: 'cold', lead: item.leadId }),
+      item.pastPromisedDate
+        ? `${STAGE_LABEL[item.stage] ?? item.stage} · ${item.daysPastPromise} d past the close date its rep predicted`
+        : undefined,
+    ),
   );
-
   const branchCounts = dataset.branches
     .map((branch) => ({
       name: branch.name.replace(' Toyota', ''),
@@ -103,7 +117,7 @@ export default async function ActionCenterPage({
 
   const tabs: { id: QueueId; label: string; count: number }[] = [
     { id: 'stalled', label: 'Stalled orders', count: actions.stalled.count },
-    { id: 'cold', label: 'Cold leads', count: actions.cold.count },
+    { id: 'cold', label: 'Open leads at risk', count: actions.cold.count },
     { id: 'delays', label: 'Delivery delays', count: actions.delays.count },
   ];
 
@@ -111,6 +125,8 @@ export default async function ActionCenterPage({
     <div className="app">
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
+        viewAs={viewAs}
+        branches={dataset.branches}
         subtitle="Action Center"
         current="actions"
         actionCount={actions.stalled.count + actions.cold.count}
@@ -192,6 +208,25 @@ export default async function ActionCenterPage({
                 </p>
                 <span className="t-metric-s muted">{actions.normalDays.order_placed} d</span>
               </div>
+              {/* A slow delivery and a broken promise are different problems.
+                  Nearly every stalled order is both, and that is the sentence
+                  worth putting in front of a CEO. */}
+              {actions.stalledPastPromise.count > 0 ? (
+                <>
+                  <span style={{ width: 1, height: 38, background: 'var(--rule)' }} aria-hidden="true" />
+                  <div>
+                    <p className="t-label" style={{ marginBottom: 3 }}>
+                      Past the promised date
+                    </p>
+                    <span className="t-metric-s warn">
+                      {actions.stalledPastPromise.count} of {actions.stalled.count}
+                    </span>
+                    <p className="t-micro" style={{ marginTop: 2 }}>
+                      {formatCurrency(actions.stalledPastPromise.value)} already promised to a customer
+                    </p>
+                  </div>
+                </>
+              ) : null}
               <span className="sp" />
               {branchCounts.length > 0 ? (
                 <div className="queue-branches" style={{ textAlign: 'right' }}>
@@ -284,9 +319,11 @@ export default async function ActionCenterPage({
                 ))}
               </div>
               <p className="t-small" style={{ marginTop: 'var(--s3)', maxWidth: '86ch' }}>
-                A lead is cold once it has idled twice as long as its stage normally takes to advance. Stalled
-                orders are excluded — they have their own queue, and listing them twice would train you to
-                ignore one of the counts.
+                A lead lands here for either of two reasons: it has idled twice as long as its stage normally
+                takes to advance, or it is past the close date its own rep predicted. Stalled orders are
+                excluded — they have their own queue, and 30 of the 31 leads past their promised date are
+                stalled orders, so a separate &ldquo;overdue&rdquo; queue would have been the same rows a
+                second time.
               </p>
             </div>
             <ActionQueue

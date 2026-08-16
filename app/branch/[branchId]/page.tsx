@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BranchSkeleton } from '@/components/skeletons';
 import { computeBranches } from '@/lib/analytics/branches';
+import { computeActionCenter } from '@/lib/analytics/actionCenter';
 import { computeCycleTime } from '@/lib/analytics/cycleTime';
 import { compareFunnelToPeers } from '@/lib/analytics/funnel';
 import { computeLeadTimeline } from '@/lib/analytics/leadTimeline';
@@ -22,8 +23,10 @@ import { selectLeads } from '@/lib/filters';
 import {
   hrefWithFilters,
   parseFilterState,
+  parseViewAs,
   toFilters,
   toQueryString,
+  withoutBranchScope,
   type SearchParams,
 } from '@/lib/url-filters';
 import { Breadcrumb, FilterBar, SubsetBar, TopBar } from '@/components/chrome';
@@ -77,7 +80,9 @@ export default async function BranchPage({
   const branch = dataset.indexes.branchesById.get(branchId);
   if (!branch) notFound();
 
-  const state = parseFilterState(query, dataset.branches.map((b) => b.id));
+  // The branch axis cannot apply on a route already scoped to one branch.
+  const state = withoutBranchScope(parseFilterState(query, dataset.branches.map((b) => b.id)));
+  const viewAs = parseViewAs(query, dataset.branches.map((b) => b.id));
   const filters = toFilters(state);
   const basePath = `/branch/${branchId}`;
 
@@ -97,6 +102,7 @@ export default async function BranchPage({
   const companyReps = computeReps(dataset);
   const targets = computeTargets(dataset, filters);
   const groupHours = groupMedianHoursToFirstContact(dataset, filters);
+  const actions = computeActionCenter(dataset, filters);
 
   const repsInBranch = {
     reps: branchReps.reps.filter((rep) => rep.branchId === branchId),
@@ -110,12 +116,19 @@ export default async function BranchPage({
 
   return (
     <div className="app">
-      <TopBar reconciledCount={dataset.reconciliation.reconciledCount} filters={state} />
+      <TopBar
+        reconciledCount={dataset.reconciliation.reconciledCount}
+        filters={state}
+        viewAs={viewAs}
+        branches={dataset.branches}
+        actionCount={actions.stalled.count + actions.cold.count}
+      />
       <FilterBar
         state={state}
         branches={dataset.branches}
         basePath={basePath}
         leadCount={leads.length}
+        branchScope={{ branchId }}
         leadingSlot={
           <>
             <Breadcrumb

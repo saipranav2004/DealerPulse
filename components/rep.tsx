@@ -56,7 +56,7 @@ export function RepBenchmark({
       >
         <div>
           <p className="t-label" style={{ marginBottom: 10 }}>
-            Win rate in context
+            Sale rate in context
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
@@ -67,7 +67,7 @@ export function RepBenchmark({
                 <LowN n={rep.winRate.n} />
               ) : (
                 <>
-                  <Rail value={repRate} scale={scale} focus label={`${rep.name} win rate`} />
+                  <Rail value={repRate} scale={scale} focus label={`${rep.name}: share of leads that became a sale`} />
                   <span className="num acc" style={{ width: 48, textAlign: 'right', fontWeight: 600 }}>
                     <RateText rate={rep.winRate} />
                   </span>
@@ -82,7 +82,7 @@ export function RepBenchmark({
                 <span className="t-micro dim">insufficient data</span>
               ) : (
                 <>
-                  <Rail value={branchWinRate} scale={scale} label="Branch win rate" />
+                  <Rail value={branchWinRate} scale={scale} label="Branch share of leads that became a sale" />
                   <span className="num" style={{ width: 48, textAlign: 'right' }}>
                     {formatPercentValue(branchWinRate)}
                   </span>
@@ -200,7 +200,8 @@ export function ControllableNumber({
       </p>
       <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: '1px solid var(--rule)' }}>
         <p className="t-micro">
-          Win rate depends on lead quality, branch process and luck. This number depends on one person,
+          The share of leads that become a sale depends on lead quality, branch process and luck. This
+          number depends on one person,
           which is why it is the one a review should be about.
         </p>
       </div>
@@ -399,7 +400,7 @@ export function RepEmptyState({
             <h2 className="t-h2">No leads are assigned to {rep.name}</h2>
             <p className="t-small">
               {rep.role === 'branch_manager'
-                ? 'Branch managers at all five branches carry zero pipeline, so there is no funnel, win rate or revenue to show here. That is a reporting structure, not a gap in the data.'
+                ? 'Branch managers at all five branches carry zero pipeline, so there is no funnel, sale rate or revenue to show here. That is a reporting structure, not a gap in the data.'
                 : 'This rep holds no leads on the current selection, so there is nothing to score. Widen the filters to see their full book.'}
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>

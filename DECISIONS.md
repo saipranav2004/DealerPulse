@@ -42,6 +42,23 @@ and it was invisible to me until I tried to use the thing rather than look at it
 
 ## Key product decisions and tradeoffs
 
+**The headline states two figures, because merging them was a 10× lie.** Closing
+Lakeside's gap to peer rates *across the whole funnel* is worth ₹3.95–5.52 Cr.
+Fixing first contact *alone*, holding the branch's own downstream conversion, is
+worth ₹0.40–0.56 Cr. An earlier version of this product printed the first number
+in the sentence about the second — an external audit caught it, and it was the
+single worst error here: the one sentence a CEO actually reads was the one place
+the discipline broke. Both numbers now come from `computeWhatIf`, the same
+function the simulator calls, so the two screens cannot drift apart again.
+
+**Recoverable value is a range, not a point.** Pricing recovered leads at the
+branch's *delivered* mix (₹17.78 L) gives ₹3.95 Cr; pricing them at the mean
+across all its leads (₹24.83 L) gives ₹5.52 Cr. Both bases are defensible —
+recovered leads come from the general pool, but this branch has only ever
+delivered the cheaper end of it. Quoting only the higher one was silently
+picking the flattering base, which is exactly what every other number here is
+guarded against.
+
 **Rank funnel steps by leads lost, not by percentage-point gap.** Lakeside's
 widest gap is `test_drive → negotiation` at −29 points. But that step operates on
 27 leads, while the first step operates on 79. Ranking by points would have
@@ -55,11 +72,32 @@ the colour would stop meaning anything within one session. It is spent only on
 the ₹8.59 Cr of orders paid for and never delivered.
 
 **Targets are shown, then disarmed.** The seven-month target is 1,426 units and
-only 510 leads exist. Even at a 100% win rate the group could deliver 510 — the
-target is 2.8× total lead volume and is arithmetically unreachable. Hiding that
-would be dishonest; leading with it would train the CEO to ignore a vital sign.
-So it is rendered with a black tick marking the ceiling, and it drives no health
-signal anywhere in the product.
+only 510 leads exist. Even if every single lead converted the group could deliver
+510 — the target is 2.8× total lead volume and is arithmetically unreachable.
+Hiding that would be dishonest; leading with the percentage would train the CEO
+to ignore a vital sign. So the panel leads with the planning defect, marks the
+ceiling with a black tick, and drives no health signal anywhere in the product.
+
+**"Never called: 119" is labelled with its split.** Sitting beside "Money at
+risk", a bare count reads as a work queue. It is not one: 114 of those leads are
+already lost and only 5 are still callable. The card now says so. Likewise "win
+rate" became "leads that became a sale", with the denominator printed under it —
+a win rate hides what it is a rate *of*.
+
+**There is no separate "overdue" queue, and the reason is in the data.** 31 open
+leads are past the close date their own rep predicted, worth ₹6.89 Cr — an
+obvious queue, until you check the overlap: 30 of the 31 are stalled orders
+already sitting in a more urgent queue. A standalone tab would have been the
+same rows a second time. So the breach became an *attribute*: the stalled queue
+now reports "30 of 38 past the promised date · ₹6.80 Cr already promised to a
+customer", each row states how many days late it is against that promise, and
+the single non-stalled lead joins the at-risk queue.
+
+**The trend chip is month-on-month, not first-to-last.** "+276.4% since July" was
+trough-to-peak on a six-point series — chosen by whichever month happened to be
+lowest, and the loudest element on the card. It now reads "+54.6% vs last month",
+with the honest context underneath: December is 2.6× the median of the earlier
+months.
 
 **The cold-leads queue ships with one row, not thirty-five.** Thresholds are
 derived from each stage's actual dwell median rather than round numbers. A flat
@@ -83,6 +121,32 @@ the upper figure; excluding them entirely produces ₹2.94 Cr. Both are shown, w
 the reason stated above the number. A single point estimate here would have been
 a lie dressed as precision. As a coherence check: P(deliver | new) works out to
 0.3137, which is exactly the company's 160/510 win rate.
+
+**Movement, not only level.** Every other module answers "how much"; a reader
+could not tell a business that is recovering from one that is sliding. A
+"What changed last month" strip compares the last complete month to the one
+before it across four measures, and states how many months of delivery work the
+open pipeline represents at the trailing median pace. A *median*, not a mean —
+December is nearly three times the median month, and a mean would let that one
+month set the expectation for every future one.
+
+**A branch manager gets a different first screen.** The brief names two
+audiences. A manager landing on a group-wide indictment of somebody else's branch
+has been shown something they cannot act on. `?as=<branchId>` retargets
+navigation to their own branch, scopes every queue to it, and is authoritative
+rather than decorative — the scope applies even if the branch parameter is
+missing from the URL.
+
+**A branch filter on a branch route was a trap.** `/branch/B3?branch=B1` asked
+for B1's leads inside B3, rendered "0 of 510 leads", and the recovery link
+carried the conflict forward — the escape hatch didn't escape. The branch axis is
+now discarded on arrival at any route already scoped to a branch, and the control
+in its place *navigates* to the branch instead of filtering within it.
+
+**Targets read as a planning defect, not a low score.** 12.4% attainment invites
+the conclusion that the group is failing. The real finding is that the target is
+2.8× total lead volume and unbuildable at any performance level. The defect now
+leads the panel and the percentage follows it.
 
 **Filters live in the URL.** They survive navigation into a drill-down, they are
 shareable as a link, and they let the server compute the page — so the 620 KB
@@ -197,10 +261,27 @@ median cycle, a December lead cannot have delivered yet. Cohort series carry an
 Numbers are asserted against a fixed expectations file rather than trusted:
 326 unit tests across 20 files pin every published figure, the low-sample guard,
 the percentile convention, and the whole-day duration rule. A separate end-to-end
-pass renders all seven routes under `next start` and asserts 38 rendered figures
-and states — including the 404s, the empty-by-filter state, and the n=1 case
-where every rate must be withheld. `NOW` is pinned to 2025-12-31T19:10:00Z, so
-nothing in the product depends on when it is run.
+pass renders every route under `next start` and asserts 50 rendered figures and
+states — including the 404s, the empty-by-filter state, the n=1 case where every
+rate must be withheld, and the filter-conflict case that used to render an empty
+screen. Layout is measured, not eyeballed: all nine routes are checked for
+horizontal overflow at fifteen viewport widths from 360px to 1920px. `NOW` is
+pinned to 2025-12-31T19:10:00Z, so nothing in the product depends on when it is
+run.
+
+Two defects that survived my own review and were caught by an external audit are
+worth naming, because both were failures of the same kind — the code was right
+and the sentence around it was not:
+
+1. The verdict quoted the whole-funnel recovery figure inside a sentence about
+   first contact, overstating that lever roughly tenfold. The what-if simulator
+   two clicks away stated it correctly the whole time.
+2. `/branch/B3?branch=B1` rendered "0 of 510 leads" with a recovery link that
+   preserved the contradiction.
+
+Numbers being right is not the same as a product being right, and unit tests
+cannot see the difference. That is why the end-to-end pass now asserts rendered
+*sentences*, not only rendered figures.
 
 One expected value does not reproduce and is documented rather than tuned away:
 the walk-in source's delivered revenue computes to ₹25.00 L where the

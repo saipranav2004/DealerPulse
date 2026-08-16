@@ -608,6 +608,12 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 .stat-strip > div { min-width: 0; }
 
 .scrollx { overflow-x: auto; }
+/* Movement strip: four equal cells, each a level with its change beneath. */
+.mv-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s5); }
+.mv { min-width: 0; border-left: 2px solid var(--rule); padding-left: var(--s3); }
+@media (max-width: 959px) { .mv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 519px) { .mv-grid { grid-template-columns: minmax(0, 1fr); } }
+
 .tbl-fold { min-width: 900px; }
 .tbl-fold-sm { min-width: 640px; }
 @media (max-width: 719px) {
@@ -633,6 +639,10 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
    Breakpoints — 1024 landscape tablet, then 768 portrait
    ========================================================================== */
 @media (max-width: 1279px) {
+  /* The utility bar carries four items plus navigation; below desktop the
+     labels shorten before anything is dropped. */
+  .vw-label { display: none; }
+  .recon-word { display: none; }
   .verdict-in { grid-template-columns: minmax(0,1fr); gap: var(--s5); }
   .evidence { border-left: 0; border-top: 1px solid var(--rule); padding-left: 0; padding-top: var(--s4); }
   .vitals { grid-template-columns: repeat(4, 1fr); }
@@ -647,6 +657,9 @@ a.dp-name:hover { color: var(--accent); text-decoration: underline; }
 
 @media (max-width: 1023px) {
   .topbar, .filterbar, .subset-bar, .verdict, .grid { padding-left: var(--s4); padding-right: var(--s4); }
+  /* Wrap rather than overflow once the shortened labels still do not fit. */
+  .topbar { height: auto; min-height: 38px; flex-wrap: wrap; padding-top: 5px; padding-bottom: 5px; row-gap: 4px; }
+  .menu-pop { max-width: calc(100vw - var(--s7)); }
   .vitals { grid-template-columns: repeat(2, 1fr); }
   .vital { border-bottom: 1px solid var(--rule); }
   .vital:nth-child(2n) { border-right: 0; }

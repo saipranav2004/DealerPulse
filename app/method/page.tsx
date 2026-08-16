@@ -34,7 +34,7 @@ export default function MethodPage() {
               <>
                 <p className="t-body muted" style={{ marginBottom: 'var(--s4)' }}>
                   The rule is deliberately simple so it can be checked. Find the branch furthest below the
-                  group win rate, then find the funnel step where that branch loses the most leads{' '}
+                  group sale rate, then find the funnel step where that branch loses the most leads{' '}
                   <em>relative to what its peers would have converted</em>. Steps are ranked by leads lost,
                   not by percentage-point gap.
                 </p>
@@ -77,12 +77,27 @@ export default function MethodPage() {
                   on a smaller pool, so it costs fewer leads than the first step.
                 </p>
                 <p className="t-small" style={{ marginTop: 'var(--s3)' }}>
-                  Recoverable value is{' '}
+                  Whole-funnel recoverable value is{' '}
                   <span className="num">{verdict.deliveriesAtPeerRates.toFixed(1)}</span> deliveries at peer
-                  rates minus <span className="num">{verdict.actualDeliveries}</span> actual, multiplied by
-                  the branch average deal value of{' '}
-                  <span className="num">{formatCurrency(verdict.averageDealValue)}</span> —{' '}
-                  <strong className="num">{formatCurrency(verdict.recoverableValue)}</strong>.
+                  rates minus <span className="num">{verdict.actualDeliveries}</span> actual ={' '}
+                  <span className="num">{verdict.recoverableDeliveries.toFixed(1)}</span> deliveries. Priced
+                  at the branch&rsquo;s delivered mix (
+                  <span className="num">{formatCurrency(verdict.averageDeliveredValue)}</span>) that is{' '}
+                  <strong className="num">{formatCurrency(verdict.recoverableValueLow)}</strong>; priced at
+                  the mean across all its leads (
+                  <span className="num">{formatCurrency(verdict.averageDealValue)}</span>) it is{' '}
+                  <strong className="num">{formatCurrency(verdict.recoverableValueHigh)}</strong>. Both bases
+                  are defensible — recovered leads are drawn from the general pool, but the branch has only
+                  ever delivered the cheaper end of it — so the product quotes the range.
+                </p>
+                <p className="t-small" style={{ marginTop: 'var(--s3)' }}>
+                  <strong>This is not the value of fixing first contact.</strong> Raising first contact to
+                  the peer rate while holding the branch&rsquo;s own conversion after the call yields{' '}
+                  <span className="num">{verdict.firstContactDeliveries.toFixed(1)}</span> extra deliveries,
+                  or <strong className="num">{formatCurrency(verdict.firstContactValueLow)}</strong> to{' '}
+                  <strong className="num">{formatCurrency(verdict.firstContactValueHigh)}</strong> — roughly
+                  a tenth of the whole-funnel figure. The overview states both, and the what-if simulator on{' '}
+                  <code>/actions</code> computes them with this same function.
                 </p>
               </>
             ) : (

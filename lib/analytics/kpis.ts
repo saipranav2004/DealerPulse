@@ -29,6 +29,13 @@ export interface KpiSet {
   averageDeliveredDealValue: number | null;
   /** Leads with no `contacted` event anywhere in their history. */
   neverContactedCount: number;
+  /**
+   * The split that decides whether this number is a queue or a post-mortem.
+   * Most never-contacted leads are already lost — nobody can call them back —
+   * so showing only the total invites the reader to treat it as work waiting.
+   */
+  neverContactedStillOpen: number;
+  neverContactedClosed: number;
   /** `neverContactedCount` as a share of all leads in scope. */
   neverContactedRate: Rate;
   /** Open leads broken down by the stage they currently sit in, in funnel order. */
@@ -70,7 +77,9 @@ export function computeKpiSet(
   const delivered = leads.filter(isDelivered);
   const open = leads.filter(isOpen);
   const lost = leads.filter(isLost);
-  const neverContacted = countWhere(leads, (lead) => !reachedStage(lead, 'contacted'));
+  const neverContactedLeads = leads.filter((lead) => !reachedStage(lead, 'contacted'));
+  const neverContacted = neverContactedLeads.length;
+  const neverContactedStillOpen = countWhere(neverContactedLeads, isOpen);
 
   return {
     totalLeads: leads.length,
@@ -84,6 +93,8 @@ export function computeKpiSet(
     averageDealValue: mean(leads.map((lead) => lead.dealValue)),
     averageDeliveredDealValue: mean(delivered.map((lead) => lead.dealValue)),
     neverContactedCount: neverContacted,
+    neverContactedStillOpen,
+    neverContactedClosed: neverContacted - neverContactedStillOpen,
     neverContactedRate: rate(neverContacted, leads.length),
     openByStage: FUNNEL_STAGES.filter((stage) => stage !== 'delivered').map((stage) => {
       const atStage = open.filter((lead) => lead.status === (stage as FunnelStage));

@@ -11,6 +11,8 @@ import type { QueueSummary } from '@/lib/analytics/actionCenter';
 import type { KpiSet } from '@/lib/analytics/kpis';
 import type { LossAnalysisResult } from '@/lib/analytics/lossAnalysis';
 import type { SourcesResult } from '@/lib/analytics/sources';
+import type { TrendSummary } from '@/lib/analytics/cohorts';
+import type { MomentumResult } from '@/lib/analytics/momentum';
 import type { TargetsResult } from '@/lib/analytics/targets';
 import type { Verdict } from '@/lib/analytics/verdict';
 import type { ForecastResult } from '@/lib/analytics/forecast';
@@ -18,6 +20,7 @@ import { TrendChart, type TrendPoint } from '@/components/charts';
 import {
   formatCompactNumber,
   formatCurrency,
+  formatMonthKey,
   formatNumber,
   formatPercentValue,
   formatSignedPercent,
@@ -77,11 +80,24 @@ export function VerdictBand({
               leads are never called.
             </b>
           </h1>
+          {/* Two numbers, never merged. Closing the whole funnel gap is worth
+              roughly ten times what the phone calls alone are worth, and
+              quoting the large number beside the phone-call sentence — which
+              this product did until it was audited — overstates the lever by
+              an order of magnitude. */}
           <p className="verdict-sub">
-            Bringing first contact to the group&rsquo;s{' '}
-            <span className="fig">{formatPercentValue(verdict.breakStep.peerRate, 0)}</span> would be worth
-            about <span className="fig">{formatCurrency(verdict.recoverableValue)}</span> over this period.
-            The branch is not losing deals it fought for; it is not entering them.
+            Closing {verdict.branchName.replace(' Toyota', '')}&rsquo;s gap to the other branches{' '}
+            <em>across the whole funnel</em> is worth{' '}
+            <span className="fig">{formatCurrency(verdict.recoverableValueLow)}</span> to{' '}
+            <span className="fig">{formatCurrency(verdict.recoverableValueHigh)}</span> over this period —
+            and first contact is where most of those leads are lost. The branch is not losing deals it
+            fought for; it is not entering them.
+          </p>
+          <p className="verdict-sub" style={{ marginTop: 'var(--s2)' }}>
+            Fixing first contact <em>alone</em>, holding the branch&rsquo;s own conversion after the call,
+            is worth about <span className="fig">{formatCurrency(verdict.firstContactValueLow)}</span> to{' '}
+            <span className="fig">{formatCurrency(verdict.firstContactValueHigh)}</span>. It is the first
+            step, not the whole prize.
           </p>
           <div className="verdict-acts">
             <Link
@@ -181,7 +197,9 @@ export function VitalSigns({
 
       <div className="vital">
         <div className="vital-hd">
-          <h2 className="t-label">Win rate</h2>
+          {/* "Win rate" hides its denominator. Every lead is the denominator
+              here, not every quote or every test drive. */}
+          <h2 className="t-label">Leads that became a sale</h2>
         </div>
         <p className="vital-val">
           <span className="t-metric">
@@ -190,9 +208,9 @@ export function VitalSigns({
         </p>
         <div className="vital-ft">
           <span className="t-micro num">
-            {formatNumber(kpis.deliveredUnits)} of {formatNumber(kpis.totalLeads)}
+            {formatNumber(kpis.deliveredUnits)} delivered of {formatNumber(kpis.totalLeads)} leads
           </span>
-          <svg width="64" height="20" viewBox="0 0 64 20" role="img" aria-label="Branch win rates on a shared scale">
+          <svg width="64" height="20" viewBox="0 0 64 20" role="img" aria-label="Share of leads that became a sale, per branch, on a shared scale">
             <line x1="0" y1="10" x2="64" y2="10" stroke="var(--c-grid)" strokeWidth="2" />
             {branchWinRates.map((branch) =>
               branch.value === null ? null : (
@@ -259,9 +277,12 @@ export function VitalSigns({
         </div>
       </div>
 
+      {/* Sitting beside "Money at risk", a bare count read as a work queue.
+          It is not one: almost all of these leads are already lost, and only
+          the still-open remainder can be called today. */}
       <div className="vital vital-hide-md">
         <div className="vital-hd">
-          <h2 className="t-label">Never contacted</h2>
+          <h2 className="t-label">Never called</h2>
         </div>
         <p className="vital-val">
           <span className="t-metric">{formatNumber(kpis.neverContactedCount)}</span>
@@ -272,7 +293,8 @@ export function VitalSigns({
             <LowN n={kpis.neverContactedRate.n} />
           ) : (
             <span className="chip chip-warn">
-              <span className="num">{formatPercentValue(kpis.neverContactedRate.value)}</span> of intake
+              <span className="num">{formatNumber(kpis.neverContactedClosed)}</span> already closed ·{' '}
+              <span className="num">{formatNumber(kpis.neverContactedStillOpen)}</span> still callable
             </span>
           )}
           <Sparkline
@@ -306,13 +328,13 @@ export function BranchComparison({
   return (
     <Panel
       title="Branch comparison"
-      subtitle="Ranked by win rate · grey tick is the group figure"
+      subtitle="Ranked by the share of leads that became a sale · grey tick is the group figure"
       className="c8"
       padded={false}
       footer={
         <p className="t-micro">
           Reading across a row shows cause beside effect: the branch with the isolated first-contact mark
-          has the isolated win-rate mark.
+          has the isolated sale-rate mark.
         </p>
       }
     >
@@ -323,7 +345,7 @@ export function BranchComparison({
             <span className="t-label">Leads ever contacted</span>
           </div>
           <div className="dp-h">
-            <span className="t-label">Win rate</span>
+            <span className="t-label">Leads → sale</span>
           </div>
 
           {rows.map((branch) => {
@@ -374,7 +396,7 @@ export function BranchComparison({
                         benchmark={groupWin}
                         scale={winScale}
                         focus={focus}
-                        label={`${branch.name} win rate ${formatPercentValue(win)}`}
+                        label={`${branch.name}: ${formatPercentValue(win)} of leads became a sale`}
                       />
                       <span className="dp-val">
                         <RateText rate={branch.winRate} />
@@ -535,6 +557,77 @@ const STAGE_LABEL: Record<string, string> = {
  * actually converted. The panel leads with a range rather than a single number
  * because most of the value sits in orders that have already failed to deliver.
  */
+/**
+ * Movement, placed directly under the vital signs.
+ *
+ * Every other module states a level. Without this one a reader cannot tell a
+ * business that is recovering from one that is sliding — the numbers look
+ * identical on the day they are read.
+ */
+export function MomentumStrip({ momentum }: { momentum: MomentumResult }) {
+  if (momentum.insufficientHistory || !momentum.previousMonth) return null;
+
+  return (
+    <Panel
+      title="What changed last month"
+      subtitle={`${formatMonthKey(momentum.currentMonth)} against ${formatMonthKey(momentum.previousMonth)}`}
+      className="c12"
+      footer={
+        momentum.monthsOfPipeline !== null && momentum.paceDeliveries !== null ? (
+          <p className="t-micro">
+            At the pace of the last {momentum.paceMonths} months —{' '}
+            <span className="num">{formatNumber(momentum.paceDeliveries)}</span> cars a month, median — the
+            open pipeline is about{' '}
+            <strong style={{ color: 'var(--ink)' }}>
+              <span className="num">{momentum.monthsOfPipeline.toFixed(1)}</span> months
+            </strong>{' '}
+            of delivery work. A median is used, not an average: one exceptional month should not set the
+            expectation for every future one.
+          </p>
+        ) : (
+          <p className="t-micro">Not enough completed months to state a reliable pace.</p>
+        )
+      }
+    >
+      <div className="mv-grid">
+        {momentum.movements.map((movement) => {
+          const good = movement.change === null ? null : movement.invert ? movement.change < 0 : movement.change > 0;
+          const flat = movement.change !== null && Math.abs(movement.change) < 0.005;
+          return (
+            <div key={movement.label} className="mv">
+              <p className="t-label">{movement.label}</p>
+              <p className="t-metric-s" style={{ marginTop: 4 }}>
+                {movement.kind === 'currency'
+                  ? formatCurrency(movement.current)
+                  : formatNumber(movement.current)}
+              </p>
+              <p className="t-micro" style={{ marginTop: 3 }}>
+                {movement.change === null ? (
+                  <span className="dim">no prior month to compare</span>
+                ) : (
+                  <>
+                    <span className={flat ? 'dim' : good ? 'pos' : 'crit'}>
+                      {formatSignedPercent(movement.change)}
+                    </span>{' '}
+                    <span className="dim">
+                      from{' '}
+                      {movement.kind === 'currency'
+                        ? formatCurrency(movement.previous)
+                        : formatNumber(movement.previous)}
+                    </span>
+                  </>
+                )}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+
 export function ForecastPanel({ forecast, filters }: { forecast: ForecastResult; filters: FilterState }) {
   if (forecast.openCount === 0) {
     return (
@@ -634,11 +727,15 @@ export function ForecastPanel({ forecast, filters }: { forecast: ForecastResult;
 /* -------------------------------------------------------------------------- */
 
 /** Delivered revenue by month — the plain "are we growing" question. */
-export function RevenueTrend({ points }: { points: TrendPoint[] }) {
+export function RevenueTrend({
+  points,
+  summary,
+}: {
+  points: TrendPoint[];
+  summary: TrendSummary | null;
+}) {
   if (points.length < 2) return null;
-  const first = points[0].value;
-  const last = points[points.length - 1].value;
-  const change = first > 0 ? (last - first) / first : null;
+  const latestLabel = points[points.length - 1].shortLabel;
 
   return (
     <Panel
@@ -646,16 +743,28 @@ export function RevenueTrend({ points }: { points: TrendPoint[] }) {
       subtitle="Cars handed over, by the month they were handed over"
       className="c6"
       aside={
-        change !== null ? (
-          <span className={change >= 0 ? 'chip chip-pos' : 'chip chip-crit'}>
-            <span className="num">{formatSignedPercent(change)}</span> since {points[0].shortLabel}
+        /* Month on month, not first to last. A trough-to-peak percentage on a
+           six-point series is chosen by whichever month was lowest. */
+        summary?.monthOverMonth != null ? (
+          <span className={summary.monthOverMonth >= 0 ? 'chip chip-pos' : 'chip chip-crit'}>
+            <span className="num">{formatSignedPercent(summary.monthOverMonth)}</span> vs last month
           </span>
         ) : undefined
       }
       footer={
         <p className="t-micro">
-          December is the largest month on record here. Cars ordered earlier in the year complete in
-          December, so this line leads the cohort view rather than contradicting it.
+          {summary?.multipleOfMedian != null && summary.priorMedian != null ? (
+            <>
+              {latestLabel} is{' '}
+              <strong style={{ color: 'var(--ink)' }}>
+                <span className="num">{summary.multipleOfMedian.toFixed(1)}×</span>
+              </strong>{' '}
+              the median of the earlier months (
+              <span className="num">{formatCurrency(summary.priorMedian)}</span>).{' '}
+            </>
+          ) : null}
+          Cars ordered earlier in the year complete late, so this line leads the cohort view rather than
+          contradicting it.
         </p>
       }
     >
@@ -676,7 +785,7 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
   return (
     <Panel
       title="Lead source"
-      subtitle="Win rate against average deal value"
+      subtitle="Share of leads that became a sale, against average deal value"
       className="c6"
       padded={false}
       footer={
@@ -699,7 +808,7 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
             <tr>
               <th style={{ paddingLeft: 16 }}>Source</th>
               <th className="r">Leads</th>
-              <th className="r">Win rate</th>
+              <th className="r">Leads → sale</th>
               <th className="r" style={{ paddingRight: 16 }}>
                 Avg deal
               </th>
@@ -735,7 +844,7 @@ export function SourceTable({ sources }: { sources: SourcesResult }) {
 
 /**
  * Targets, shown honestly. The black tick marks total lead volume — the
- * arithmetic ceiling on deliveries at a 100% win rate.
+ * arithmetic ceiling on deliveries even if every lead converted.
  */
 export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult; totalLeads: number }) {
   const targetUnits = targets.group.targetUnits;
@@ -749,19 +858,43 @@ export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult
         className="panel-bd"
         style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 'var(--s7)', alignItems: 'center' }}
       >
+        {/* A 12% attainment figure invites the reader to conclude the group is
+            failing. The real finding is that the target itself is unbuildable,
+            so the planning defect leads and the percentage follows it. */}
         <div>
-          <h2 className="t-label" style={{ marginBottom: 6 }}>
-            Target attainment
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span className="t-metric-s muted">
-              {attainment === null ? '—' : formatPercentValue(attainment)}
-            </span>
-            {ceilingUnreachable ? <span className="chip">baseline under review</span> : null}
-          </div>
-          <p className="t-micro" style={{ marginTop: 8 }}>
-            {formatNumber(delivered)} delivered against {formatNumber(targetUnits)} targeted units
-          </p>
+          {ceilingUnreachable ? (
+            <>
+              <div className="vital-hd" style={{ marginBottom: 6 }}>
+                <span className="warn" aria-hidden="true">
+                  <Glyph kind="warning" />
+                </span>
+                <h2 className="t-label" style={{ color: 'var(--warning)' }}>
+                  Planning defect · targets
+                </h2>
+              </div>
+              <p className="t-h2" style={{ marginBottom: 6 }}>
+                The target cannot be reached at any performance level.
+              </p>
+              <p className="t-micro">
+                Attainment reads{' '}
+                <span className="num">{attainment === null ? '—' : formatPercentValue(attainment)}</span> —{' '}
+                {formatNumber(delivered)} delivered against {formatNumber(targetUnits)} targeted units — but
+                that percentage measures the plan, not the floor.
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="t-label" style={{ marginBottom: 6 }}>
+                Target attainment
+              </h2>
+              <span className="t-metric-s muted">
+                {attainment === null ? '—' : formatPercentValue(attainment)}
+              </span>
+              <p className="t-micro" style={{ marginTop: 8 }}>
+                {formatNumber(delivered)} delivered against {formatNumber(targetUnits)} targeted units
+              </p>
+            </>
+          )}
         </div>
         <div>
           <div style={{ position: 'relative', marginBottom: 10, marginTop: 22 }}>
@@ -802,7 +935,8 @@ export function TargetsContext({ targets, totalLeads }: { targets: TargetsResult
               <>
                 The target totals <span className="num">{formatNumber(targetUnits)}</span> units. Only{' '}
                 <span className="num">{formatNumber(totalLeads)}</span> leads were created in the same period.
-                Even at a 100% win rate the group could deliver {formatNumber(totalLeads)} — the target is{' '}
+                Even if every single lead became a sale the group could deliver {formatNumber(totalLeads)} — the
+                target is{' '}
                 <strong>{formatCompactNumber(targetUnits / Math.max(1, totalLeads), 1)}× total lead volume</strong> and
                 cannot be reached by conversion at any performance level. It is shown for continuity and is
                 excluded from every health signal on this screen.

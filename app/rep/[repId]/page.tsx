@@ -4,8 +4,10 @@
  * rendering a wall of zeros.
  */
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { computeActionCenter } from '@/lib/analytics/actionCenter';
 import { computeBranches } from '@/lib/analytics/branches';
 import { computeFunnel } from '@/lib/analytics/funnel';
 import { computeKpiSet } from '@/lib/analytics/kpis';
@@ -17,8 +19,17 @@ import { selectLeads } from '@/lib/filters';
 import { isOpen } from '@/lib/lead';
 import { median, wholeDaysBetween } from '@/lib/stats';
 import { formatCurrency, formatNumber } from '@/lib/format';
-import { hrefWithFilters, parseFilterState, toFilters, toQueryString, type SearchParams } from '@/lib/url-filters';
+import {
+  hrefWithFilters,
+  parseFilterState,
+  parseViewAs,
+  toFilters,
+  toQueryString,
+  withoutBranchScope,
+  type SearchParams,
+} from '@/lib/url-filters';
 import { Breadcrumb, FilterBar, SubsetBar, TopBar } from '@/components/chrome';
+import { RepSkeleton } from '@/components/skeletons';
 import { LeadDrawer } from '@/components/lead-drawer';
 import { RateText } from '@/components/ui';
 import {
@@ -58,7 +69,9 @@ export default async function RepPage({
   const repRecord = dataset.indexes.repsById.get(repId);
   if (!repRecord) notFound();
 
-  const state = parseFilterState(query, dataset.branches.map((b) => b.id));
+  // Scoped to one rep, so a branch filter can only ever contradict the route.
+  const state = withoutBranchScope(parseFilterState(query, dataset.branches.map((b) => b.id)));
+  const viewAs = parseViewAs(query, dataset.branches.map((b) => b.id));
   const filters = toFilters(state);
   const basePath = `/rep/${repId}`;
   const scope = { kind: 'rep' as const, repId };
@@ -82,6 +95,7 @@ export default async function RepPage({
   const loss = computeLossAnalysis(dataset, filters, scope);
   const groupKpis = computeKpiSet(dataset, filters);
   const groupHours = groupMedianHoursToFirstContact(dataset, filters);
+  const actions = computeActionCenter(dataset, filters);
 
   const repLeads = selectLeads(dataset, filters, scope);
   const openLeads = repLeads.filter(isOpen);
@@ -97,12 +111,19 @@ export default async function RepPage({
 
   return (
     <div className="app">
-      <TopBar reconciledCount={dataset.reconciliation.reconciledCount} filters={state} />
+      <TopBar
+        reconciledCount={dataset.reconciliation.reconciledCount}
+        filters={state}
+        viewAs={viewAs}
+        branches={dataset.branches}
+        actionCount={actions.stalled.count + actions.cold.count}
+      />
       <FilterBar
         state={state}
         branches={dataset.branches}
         basePath={basePath}
         leadCount={repLeads.length}
+        branchScope={{ branchId: rep.branchId }}
         leadingSlot={
           <>
             <Breadcrumb
@@ -125,6 +146,7 @@ export default async function RepPage({
       />
 
       <main id="main">
+        <Suspense fallback={<RepSkeleton />}>
         <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--rule)', padding: 'var(--s5)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--s5)', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 220 }}>
@@ -137,7 +159,7 @@ export default async function RepPage({
             {!rep.hasNoLeads ? (
               <div style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap' }}>
                 <div>
-                  <p className="t-label">Win rate</p>
+                  <p className="t-label">Leads → sale</p>
                   <span className="t-metric-s">
                     <RateText rate={rep.winRate} />
                   </span>
@@ -198,6 +220,7 @@ export default async function RepPage({
             ← Back to {branchName.replace(' Toyota', '')}
           </Link>
         </div>
+        </Suspense>
       </main>
 
       {timeline ? <LeadDrawer timeline={timeline} closeHref={`${basePath}${toQueryString(state)}`} /> : null}

@@ -190,6 +190,39 @@ export function withoutAxis(state: FilterState, axis: 'period' | 'branch' | 'mod
   };
 }
 
+/**
+ * Who is looking.
+ *
+ * The brief names two audiences, and they need different first screens. The
+ * group CEO wants the branch that is furthest behind. A branch manager landing
+ * on a public indictment of a *different* branch has been shown something they
+ * cannot act on. `?as=<branchId>` says "I run this branch": navigation retargets
+ * to that branch's diagnosis and every queue arrives pre-narrowed to it.
+ */
+export function parseViewAs(params: SearchParams, validBranchIds: readonly string[]): string | null {
+  const raw = params.as;
+  const value = typeof raw === 'string' ? raw : undefined;
+  return value && validBranchIds.includes(value) ? value : null;
+}
+
+/** Append the active role to a link, so it survives navigation. */
+export function withView(href: string, viewAs: string | null): string {
+  if (!viewAs) return href;
+  return `${href}${href.includes('?') ? '&' : '?'}as=${encodeURIComponent(viewAs)}`;
+}
+
+/**
+ * Drop the branch axis on a route that is already scoped to one branch.
+ *
+ * `/branch/B3?branch=B1` is unanswerable — it asks for B1's leads inside B3 —
+ * and it used to render "0 of 510 leads" with a recovery link that preserved
+ * the conflict. The branch axis simply does not apply on these routes, so it
+ * is discarded on arrival rather than allowed to produce an empty screen.
+ */
+export function withoutBranchScope(state: FilterState): FilterState {
+  return state.branchIds.length === 0 ? state : { ...state, branchIds: [] };
+}
+
 export const EMPTY_FILTER_STATE: FilterState = {
   periodId: DEFAULT_PERIOD.id,
   branchIds: [],

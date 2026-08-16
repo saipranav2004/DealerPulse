@@ -15,7 +15,7 @@
 import { NOW, toMonthKey } from '@/lib/data';
 import { selectLeads } from '@/lib/filters';
 import { isDelivered, isLost, isOpen, reachedStage } from '@/lib/lead';
-import { countWhere, rate, sumBy, wholeDaysBetween } from '@/lib/stats';
+import { countWhere, median, rate, relativeChange, sumBy, wholeDaysBetween } from '@/lib/stats';
 import type { Dataset } from '@/lib/data';
 import type { Filters, MonthKey, Rate, Scope } from '@/lib/types';
 
@@ -139,6 +139,43 @@ export function computeDeliveryActivity(
   return [...byMonth.entries()]
     .map(([month, bucket]) => ({ month, ...bucket }))
     .sort((a, b) => a.month.localeCompare(b.month));
+}
+
+export interface TrendSummary {
+  /** The most recent month in the series. */
+  latest: ActivityPoint;
+  /** The month before it, when there is one. */
+  previous: ActivityPoint | null;
+  /** Month-on-month change in revenue; null when the prior month was zero. */
+  monthOverMonth: number | null;
+  /** Median monthly revenue across every *earlier* month in the series. */
+  priorMedian: number | null;
+  /** Latest month as a multiple of that median; null when the median is zero. */
+  multipleOfMedian: number | null;
+}
+
+/**
+ * Summarise a delivery series for display.
+ *
+ * Deliberately *not* first-to-last. On a six-point series, "+276% since July"
+ * is a trough-to-peak comparison — it is chosen by whichever month happened to
+ * be lowest, and it flatters. Month-on-month is a real movement, and the median
+ * of the earlier months says whether the latest one is genuinely unusual
+ * without letting one weak month set the baseline.
+ */
+export function summariseTrend(points: readonly ActivityPoint[]): TrendSummary | null {
+  if (points.length === 0) return null;
+  const latest = points[points.length - 1];
+  const previous = points.length > 1 ? points[points.length - 2] : null;
+  const priorMedian = points.length > 1 ? median(points.slice(0, -1).map((p) => p.revenue)) : null;
+
+  return {
+    latest,
+    previous,
+    monthOverMonth: relativeChange(latest.revenue, previous?.revenue ?? null),
+    priorMedian,
+    multipleOfMedian: priorMedian !== null && priorMedian > 0 ? latest.revenue / priorMedian : null,
+  };
 }
 
 /** The month key a date belongs to. Re-exported so callers need not reach into the loader. */

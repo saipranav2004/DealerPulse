@@ -12,6 +12,7 @@
 import { computeBranches } from '@/lib/analytics/branches';
 import { compareFunnelToPeers } from '@/lib/analytics/funnel';
 import type { FunnelStepComparison } from '@/lib/analytics/funnel';
+import { computeWhatIf } from '@/lib/analytics/whatIf';
 import { selectLeads } from '@/lib/filters';
 import { isDelivered, reachedStage } from '@/lib/lead';
 import { countWhere, mean } from '@/lib/stats';
@@ -42,8 +43,25 @@ export interface Verdict {
   deliveriesAtPeerRates: number;
   actualDeliveries: number;
   recoverableDeliveries: number;
-  recoverableValue: number;
+  /**
+   * The whole-funnel recovery, priced two ways. `Low` values every recovered
+   * lead at the branch's *delivered* mix; `high` values it at the mean across
+   * all its leads. Both are defensible and they differ by 40%, so the product
+   * quotes the range rather than silently choosing the flattering end.
+   */
+  recoverableValueLow: number;
+  recoverableValueHigh: number;
+  /**
+   * The first-contact lever *alone*, holding the branch's own downstream
+   * conversion. This is an order of magnitude smaller than the whole-funnel
+   * figure, and conflating the two was the single worst error in this product.
+   */
+  firstContactDeliveries: number;
+  firstContactValueLow: number;
+  firstContactValueHigh: number;
+  /** Mean deal value across every lead, and across delivered leads only. */
   averageDealValue: number;
+  averageDeliveredValue: number;
 }
 
 /**
@@ -79,10 +97,18 @@ export function computeVerdict(dataset: Dataset, filters: Filters = {}): Verdict
   const branchLeads = selectLeads(dataset, filters, { kind: 'branch', branchId: worst.branchId });
   const neverContacted = countWhere(branchLeads, (lead) => !reachedStage(lead, 'contacted'));
   const averageDealValue = mean(branchLeads.map((lead) => lead.dealValue)) ?? 0;
+  const deliveredLeads = branchLeads.filter(isDelivered);
+  const averageDeliveredValue = mean(deliveredLeads.map((lead) => lead.dealValue)) ?? averageDealValue;
 
   const deliveriesAtPeerRates = comparison.deliveriesAtPeerRates;
   const actualDeliveries = countWhere(branchLeads, isDelivered);
   const recoverableDeliveries = Math.max(0, deliveriesAtPeerRates - actualDeliveries);
+
+  // The first-contact lever alone, computed by the same function the what-if
+  // simulator calls — so the headline and the simulator cannot disagree.
+  const probe = computeWhatIf(dataset, worst.branchId, 0, filters);
+  const firstContact = probe ? computeWhatIf(dataset, worst.branchId, probe.peerRate, filters) : null;
+  const firstContactDeliveries = Math.max(0, firstContact?.deltaDelivered ?? 0);
 
   return {
     branchId: worst.branchId,
@@ -100,7 +126,12 @@ export function computeVerdict(dataset: Dataset, filters: Filters = {}): Verdict
     deliveriesAtPeerRates,
     actualDeliveries,
     recoverableDeliveries,
-    recoverableValue: recoverableDeliveries * averageDealValue,
+    recoverableValueLow: recoverableDeliveries * averageDeliveredValue,
+    recoverableValueHigh: recoverableDeliveries * averageDealValue,
+    firstContactDeliveries,
+    firstContactValueLow: firstContactDeliveries * averageDeliveredValue,
+    firstContactValueHigh: firstContactDeliveries * averageDealValue,
     averageDealValue,
+    averageDeliveredValue,
   };
 }

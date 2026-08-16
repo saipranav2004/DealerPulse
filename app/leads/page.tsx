@@ -16,6 +16,7 @@ import {
   SOURCE_LABELS,
   hrefWithFilters,
   parseFilterState,
+  parseViewAs,
   toFilters,
   toQueryString,
   type SearchParams,
@@ -71,7 +72,11 @@ const STAGE_LABEL: Record<LeadStatus, string> = {
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const dataset = getDataset();
-  const state = parseFilterState(params, dataset.branches.map((b) => b.id));
+  const baseState = parseFilterState(params, dataset.branches.map((b) => b.id));
+  const viewAs = parseViewAs(params, dataset.branches.map((b) => b.id));
+  // A role is authoritative, not decorative: a branch manager's view is
+  // scoped to their branch even if the branch parameter is missing.
+  const state = viewAs ? { ...baseState, branchIds: [viewAs] } : baseState;
   const filters = toFilters(state);
   const basePath = '/leads';
 
@@ -119,6 +124,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     <div className="app">
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
+        viewAs={viewAs}
+        branches={dataset.branches}
         current="leads"
         actionCount={actionCount}
         filters={state}

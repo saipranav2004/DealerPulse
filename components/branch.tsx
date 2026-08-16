@@ -82,7 +82,7 @@ export function BranchHeader({
         </div>
         <div style={{ borderLeft: '1px solid var(--rule)', paddingLeft: 'var(--s5)' }}>
           <p className="t-label" style={{ marginBottom: 4 }}>
-            Win rate
+            Leads that became a sale
           </p>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <span className="t-metric-s">{winRate}</span>
@@ -425,7 +425,7 @@ export function DistributionStrip({
   return (
     <div className="dist-wrap" style={{ padding: 'var(--s4) var(--s4) var(--s2)', borderBottom: '1px solid var(--rule)' }}>
       <p className="t-label" style={{ marginBottom: 8 }}>
-        All {rankable.length} sales officers, company-wide, by win rate
+        All {rankable.length} sales officers, company-wide, by share of leads that became a sale
       </p>
       <div className="dist">
         {allAtBottom ? (
@@ -490,7 +490,7 @@ const SORT_COLUMNS: { key: SortKey; label: string; numeric: boolean; foldsAway?:
   { key: 'name', label: 'Rep', numeric: false },
   { key: 'leads', label: 'Leads', numeric: true },
   { key: 'contacted', label: 'Contacted', numeric: true },
-  { key: 'win', label: 'Win rate', numeric: true },
+  { key: 'win', label: 'Leads → sale', numeric: true },
   { key: 'revenue', label: 'Revenue', numeric: true, foldsAway: true },
   { key: 'firstContact', label: 'Median 1st contact', numeric: true },
   { key: 'open', label: 'Open', numeric: true, foldsAway: true },
@@ -558,7 +558,7 @@ export function RepTable({
       padded={false}
       aside={
         <span className="t-micro">
-          Company median rep win rate{' '}
+          Company median rep sale rate{' '}
           <span className="num">
             {(() => {
               const rates = allReps

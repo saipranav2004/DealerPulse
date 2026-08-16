@@ -70,6 +70,15 @@ export interface QueueItem {
   band: SeverityBand;
   /** Timestamp the current stage was entered. */
   enteredAt: Date;
+  /**
+   * True when the lead is also past the close date its own rep predicted.
+   * Carried as an attribute rather than a separate queue: 30 of the 31 overdue
+   * leads are stalled orders, so a standalone "overdue" tab would have listed
+   * the same rows a second time.
+   */
+  pastPromisedDate: boolean;
+  /** Days past that predicted close date, when it has passed. */
+  daysPastPromise: number | null;
 }
 
 export interface QueueSummary {
@@ -107,6 +116,12 @@ export interface ActionCenterResult {
   /** Cold thresholds actually applied, for display. */
   coldThresholds: { stage: FunnelStage; normalDays: number; coldAfterDays: number }[];
   totalOpen: number;
+  /**
+   * Stalled orders that are *also* past the rep's predicted close date. Worth
+   * stating: it is the difference between a delivery that is merely slow and
+   * one that has already broken a promise made to the customer.
+   */
+  stalledPastPromise: { count: number; value: number };
 }
 
 function band(lateness: number): SeverityBand {
@@ -135,6 +150,13 @@ export function stageNormalDays(dataset: Dataset): Record<FunnelStage, number> {
     out[step.from] = median !== null && median > 0 ? median : 1;
   }
   return out;
+}
+
+/** Days past the rep's own predicted close date, or null if it has not passed. */
+function promiseLateness(expectedCloseDate: Date): number | null {
+  return expectedCloseDate.getTime() < NOW.getTime()
+    ? wholeDaysBetween(expectedCloseDate, NOW)
+    : null;
 }
 
 function describe(dataset: Dataset, leadId: LeadId) {
@@ -185,6 +207,8 @@ export function computeStalledQueue(
       severity: (lead.dealValue / 100_000) * lateness * STAGE_WEIGHT.order_placed,
       band: band(lateness),
       enteredAt,
+      pastPromisedDate: promiseLateness(lead.expectedCloseDate) !== null,
+      daysPastPromise: promiseLateness(lead.expectedCloseDate),
     });
   }
 
@@ -199,7 +223,9 @@ export function computeStalledQueue(
 }
 
 /**
- * Open leads that have idled past twice the normal dwell for their stage.
+ * Open leads at risk: idle past twice the normal dwell for their stage, **or**
+ * past the close date their own rep predicted. Either reason qualifies; a lead
+ * that matches both is listed once.
  *
  * Stalled orders are excluded: they have their own queue, and listing them
  * twice would teach a manager to ignore one of the two counts.
@@ -220,12 +246,16 @@ export function computeColdQueue(
     const normalDays = normal[stage] ?? 1;
     const threshold = normalDays * COLD_MULTIPLIER;
     const ageDays = wholeDaysBetween(lead.lastActivityAt, NOW);
-    if (ageDays <= threshold) continue;
+    const daysPastPromise = promiseLateness(lead.expectedCloseDate);
+    const isIdle = ageDays > threshold;
+    if (!isIdle && daysPastPromise === null) continue;
 
     const meta = describe(dataset, lead.id);
     if (!meta) continue;
 
-    const lateness = ageDays / threshold;
+    // A lead that is only overdue is late against its promise, not against
+    // its stage — rank it on that, so the two reasons stay comparable.
+    const lateness = isIdle ? ageDays / threshold : (daysPastPromise ?? 0) / threshold;
     items.push({
       leadId: lead.id,
       customerName: lead.customerName,
@@ -242,6 +272,8 @@ export function computeColdQueue(
       severity: (lead.dealValue / 100_000) * lateness * (STAGE_WEIGHT[stage] ?? 1),
       band: band(lateness),
       enteredAt: lead.lastActivityAt,
+      pastPromisedDate: daysPastPromise !== null,
+      daysPastPromise,
     });
   }
 
@@ -310,8 +342,10 @@ export function computeActionCenter(
 
   const coldStages: FunnelStage[] = ['new', 'contacted', 'test_drive', 'negotiation'];
 
+  const stalled = computeStalledQueue(dataset, filters, scope, normal);
+
   return {
-    stalled: computeStalledQueue(dataset, filters, scope, normal),
+    stalled,
     cold: computeColdQueue(dataset, filters, scope, normal),
     delays: computeDelayedDeliveries(dataset, filters, scope),
     normalDays: normal,
@@ -321,5 +355,12 @@ export function computeActionCenter(
       coldAfterDays: normal[stage] * COLD_MULTIPLIER,
     })),
     totalOpen: openLeads.length,
+    stalledPastPromise: {
+      count: stalled.items.filter((item) => item.pastPromisedDate).length,
+      value: sumBy(
+        stalled.items.filter((item) => item.pastPromisedDate),
+        (item) => item.dealValue,
+      ),
+    },
   };
 }

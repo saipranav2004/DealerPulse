@@ -4,7 +4,7 @@ Sales performance for a five-branch Toyota dealership group in India.
 Built for one user: the group CEO, who opens it for ninety seconds between
 meetings and needs to leave with a sentence he can act on.
 
-**Live:** _add your Vercel URL here after deploying_
+**Live:** https://dealer-pulse-ecru.vercel.app/
 
 See [`DECISIONS.md`](./DECISIONS.md) for what was built and why.
 
@@ -39,6 +39,9 @@ services — the dataset is a static JSON file imported at build time.
 | `/branch/[id]` | Branch diagnosis — benchmark funnel, reps, cycle time, losses |
 | `/rep/[id]` | Rep scorecard, with a stated finding for zero-lead managers |
 | `/method` | How the verdict and every threshold is calculated |
+
+Add `?as=<branchId>` (for example `/branch/B3?as=B3`) to view as that branch's
+manager: navigation retargets to their branch and every queue is scoped to it.
 
 The first four are in the top navigation on every screen. A lead opens as a
 drawer over any screen via `?lead=L0022`. Filters live in the URL, so any view is

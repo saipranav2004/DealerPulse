@@ -9,7 +9,8 @@
 import Link from 'next/link';
 import { computeActionCenter } from '@/lib/analytics/actionCenter';
 import { computeBranches } from '@/lib/analytics/branches';
-import { computeCohorts, computeDeliveryActivity } from '@/lib/analytics/cohorts';
+import { computeCohorts, computeDeliveryActivity, summariseTrend } from '@/lib/analytics/cohorts';
+import { computeMomentum } from '@/lib/analytics/momentum';
 import { computeKpiSet, computeKpis } from '@/lib/analytics/kpis';
 import { computeLeadTimeline } from '@/lib/analytics/leadTimeline';
 import { computeLossAnalysis } from '@/lib/analytics/lossAnalysis';
@@ -18,13 +19,21 @@ import { computeTargets } from '@/lib/analytics/targets';
 import { computeVerdict } from '@/lib/analytics/verdict';
 import { getDataset } from '@/lib/data';
 import { selectLeads } from '@/lib/filters';
-import { hrefWithFilters, parseFilterState, toFilters, toQueryString, type SearchParams } from '@/lib/url-filters';
+import {
+  hrefWithFilters,
+  parseFilterState,
+  parseViewAs,
+  toFilters,
+  toQueryString,
+  type SearchParams,
+} from '@/lib/url-filters';
 import { FilterBar, SubsetBar, TopBar } from '@/components/chrome';
 import { LeadDrawer } from '@/components/lead-drawer';
 import {
   BranchComparison,
   ForecastPanel,
   MoneyAtRisk,
+  MomentumStrip,
   RevenueTrend,
   SourceTable,
   TargetsContext,
@@ -43,10 +52,14 @@ export default async function OverviewPage({
 }) {
   const params = await searchParams;
   const dataset = getDataset();
-  const state = parseFilterState(
+  const baseState = parseFilterState(
     params,
     dataset.branches.map((branch) => branch.id),
   );
+  const viewAs = parseViewAs(params, dataset.branches.map((b) => b.id));
+  // A role is authoritative, not decorative: a branch manager's view is
+  // scoped to their branch even if the branch parameter is missing.
+  const state = viewAs ? { ...baseState, branchIds: [viewAs] } : baseState;
   const filters = toFilters(state);
 
   const leads = selectLeads(dataset, filters);
@@ -62,6 +75,8 @@ export default async function OverviewPage({
   const activity = computeDeliveryActivity(dataset, filters);
   const forecast = computeForecast(dataset, filters);
 
+  const trendSummary = summariseTrend(activity);
+  const momentum = computeMomentum(dataset, filters, { kind: 'company' }, forecast.expectedDeliveries);
   const trendPoints = activity.map((point) => ({
     label: formatMonthKey(point.month),
     shortLabel: formatMonthKey(point.month).split(' ')[0],
@@ -79,6 +94,8 @@ export default async function OverviewPage({
     <div className="app">
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
+        viewAs={viewAs}
+        branches={dataset.branches}
         subtitle={`Toyota Group · ${dataset.branches.length} branches`}
         current="overview"
         actionCount={actions.stalled.count + actions.cold.count}
@@ -120,7 +137,8 @@ export default async function OverviewPage({
                 filters={state}
               />
               <MoneyAtRisk stalled={actions.stalled} filters={state} />
-              <RevenueTrend points={trendPoints} />
+              <MomentumStrip momentum={momentum} />
+              <RevenueTrend points={trendPoints} summary={trendSummary} />
               <ForecastPanel forecast={forecast} filters={state} />
               <WhereDealsDie loss={loss} />
               <SourceTable sources={sources} />

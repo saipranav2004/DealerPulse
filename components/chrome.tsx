@@ -21,6 +21,7 @@ import {
   isFiltered,
   periodFor,
   toQueryString,
+  withView,
   withoutAxis,
   type FilterState,
 } from '@/lib/url-filters';
@@ -55,16 +56,37 @@ export function TopBar({
   current,
   actionCount,
   filters,
+  viewAs = null,
+  branches = [],
 }: {
   reconciledCount: number;
   subtitle?: string;
   current?: NavKey;
   actionCount?: number;
   filters?: FilterState;
+  /** Branch id the viewer is acting as, or null for the group view. */
+  viewAs?: string | null;
+  branches?: readonly Branch[];
 }) {
+  const asBranch = viewAs ? branches.find((b) => b.id === viewAs) : undefined;
+
+  /**
+   * In a branch manager's view, "Overview" means *their* branch — the group
+   * overview leads with whichever branch is worst, which for four managers in
+   * five is somebody else's problem.
+   */
+  const navHref = (item: (typeof NAV)[number]) => {
+    const base =
+      asBranch && item.key === 'overview' ? `/branch/${asBranch.id}` : item.href;
+    const scoped = filters
+      ? hrefWithFilters(base, asBranch ? { ...filters, branchIds: [asBranch.id] } : filters)
+      : base;
+    return withView(scoped, viewAs);
+  };
+
   return (
     <header className="topbar">
-      <Link href="/" className="mark">
+      <Link href={withView('/', viewAs)} className="mark">
         DealerPulse
       </Link>
       {subtitle ? <span className="org marker-hide-sm">{subtitle}</span> : null}
@@ -73,11 +95,11 @@ export function TopBar({
         {NAV.map((item) => (
           <Link
             key={item.key}
-            href={filters ? hrefWithFilters(item.href, filters) : item.href}
+            href={navHref(item)}
             className={item.key === current ? 'nav-link on' : 'nav-link'}
             aria-current={item.key === current ? 'page' : undefined}
           >
-            {item.label}
+            {item.key === 'overview' && asBranch ? 'My branch' : item.label}
             {item.key === 'actions' && actionCount !== undefined && actionCount > 0 ? (
               <span className="nav-badge" aria-label={`${actionCount} items need attention`}>
                 {actionCount}
@@ -88,6 +110,35 @@ export function TopBar({
       </nav>
 
       <span className="sp" />
+      {branches.length > 0 ? (
+        <details className="menu">
+          <summary className="marker-btn" aria-label="Change who you are viewing as">
+            <span className="dim vw-label">Viewing as</span>
+            <u>{asBranch ? `${asBranch.name.replace(' Toyota', '')} manager` : 'Group CEO'}</u>
+          </summary>
+          <div className="menu-pop to-right">
+            <Link href="/" className={asBranch ? 'menu-item' : 'menu-item on'}>
+              <span className="menu-tick" aria-hidden="true">
+                {asBranch ? '' : '✓'}
+              </span>
+              Group CEO — all branches
+            </Link>
+            <div className="menu-sep" />
+            {branches.map((branch) => (
+              <Link
+                key={branch.id}
+                href={`/branch/${branch.id}?as=${branch.id}`}
+                className={branch.id === viewAs ? 'menu-item on' : 'menu-item'}
+              >
+                <span className="menu-tick" aria-hidden="true">
+                  {branch.id === viewAs ? '✓' : ''}
+                </span>
+                {branch.name.replace(' Toyota', '')} manager
+              </Link>
+            ))}
+          </div>
+        </details>
+      ) : null}
       <span className="marker">
         <i className="dot" aria-hidden="true" />
         <span className="marker-hide-sm">Data current as of {DATA_CURRENT_AS_OF}</span>
@@ -99,7 +150,9 @@ export function TopBar({
       <ThemeToggle />
       <details className="menu">
         <summary className="marker-btn" aria-label={`${reconciledCount} records reconciled — data quality`}>
-          <u>{reconciledCount} records reconciled</u>
+          <u>
+            {reconciledCount} <span className="recon-word">records </span>reconciled
+          </u>
         </summary>
         <div className="menu-pop to-right" style={{ minWidth: 300, padding: 'var(--s3)' }}>
           <p className="t-label" style={{ marginBottom: 8 }}>
@@ -162,16 +215,28 @@ export function FilterBar({
   basePath,
   leadCount,
   leadingSlot,
+  branchScope,
 }: {
   state: FilterState;
   branches: readonly Branch[];
   basePath: string;
   leadCount: number;
   leadingSlot?: React.ReactNode;
+  /**
+   * Set on routes that are already scoped to one branch. There, a branch
+   * *filter* is a trap: picking a different branch produced "0 of 510 leads"
+   * and the recovery link carried the conflict forward. So on those routes the
+   * control navigates to the branch instead of filtering within it.
+   */
+  branchScope?: { branchId: string };
 }) {
   const period = periodFor(state);
-  const branchLabel =
-    state.branchIds.length === 0
+  const scopedBranch = branchScope
+    ? branches.find((b) => b.id === branchScope.branchId)
+    : undefined;
+  const branchLabel = scopedBranch
+    ? scopedBranch.name
+    : state.branchIds.length === 0
       ? `All ${branches.length}`
       : state.branchIds.length === 1
         ? (branches.find((b) => b.id === state.branchIds[0])?.name ?? state.branchIds[0])
@@ -202,33 +267,58 @@ export function FilterBar({
         ))}
       </FilterMenu>
 
-      <FilterMenu label="Branch" value={branchLabel} active={state.branchIds.length > 0}>
-        <Link
-          href={`${basePath}${toQueryString(withoutAxis(state, 'branch'))}`}
-          className={state.branchIds.length === 0 ? 'menu-item on' : 'menu-item'}
-        >
-          <span className="menu-tick" aria-hidden="true">
-            {state.branchIds.length === 0 ? '✓' : ''}
-          </span>
-          All branches
-        </Link>
-        <div className="menu-sep" />
-        {branches.map((branch) => {
-          const on = state.branchIds.includes(branch.id);
-          return (
-            <Link
-              key={branch.id}
-              href={`${basePath}${toQueryString({ ...state, branchIds: toggle(state.branchIds, branch.id) })}`}
-              className={on ? 'menu-item on' : 'menu-item'}
-            >
-              <span className="menu-tick" aria-hidden="true">
-                {on ? '✓' : ''}
-              </span>
-              {branch.name}
-            </Link>
-          );
-        })}
-      </FilterMenu>
+      {scopedBranch ? (
+        <FilterMenu label="Viewing" value={branchLabel} active>
+          <Link href={`/${toQueryString(withoutAxis(state, 'branch'))}`} className="menu-item">
+            <span className="menu-tick" aria-hidden="true" />
+            All branches (overview)
+          </Link>
+          <div className="menu-sep" />
+          {branches.map((branch) => {
+            const on = branch.id === scopedBranch.id;
+            return (
+              <Link
+                key={branch.id}
+                href={`/branch/${branch.id}${toQueryString(withoutAxis(state, 'branch'))}`}
+                className={on ? 'menu-item on' : 'menu-item'}
+              >
+                <span className="menu-tick" aria-hidden="true">
+                  {on ? '✓' : ''}
+                </span>
+                {branch.name}
+              </Link>
+            );
+          })}
+        </FilterMenu>
+      ) : (
+        <FilterMenu label="Branch" value={branchLabel} active={state.branchIds.length > 0}>
+          <Link
+            href={`${basePath}${toQueryString(withoutAxis(state, 'branch'))}`}
+            className={state.branchIds.length === 0 ? 'menu-item on' : 'menu-item'}
+          >
+            <span className="menu-tick" aria-hidden="true">
+              {state.branchIds.length === 0 ? '✓' : ''}
+            </span>
+            All branches
+          </Link>
+          <div className="menu-sep" />
+          {branches.map((branch) => {
+            const on = state.branchIds.includes(branch.id);
+            return (
+              <Link
+                key={branch.id}
+                href={`${basePath}${toQueryString({ ...state, branchIds: toggle(state.branchIds, branch.id) })}`}
+                className={on ? 'menu-item on' : 'menu-item'}
+              >
+                <span className="menu-tick" aria-hidden="true">
+                  {on ? '✓' : ''}
+                </span>
+                {branch.name}
+              </Link>
+            );
+          })}
+        </FilterMenu>
+      )}
 
       <FilterMenu label="Model" value={modelLabel} active={state.models.length > 0}>
         <Link

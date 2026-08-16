@@ -15,6 +15,7 @@ import { formatCurrency, formatNumber, formatPercentValue } from '@/lib/format';
 import {
   hrefWithFilters,
   parseFilterState,
+  parseViewAs,
   toFilters,
   toQueryString,
   type SearchParams,
@@ -30,7 +31,11 @@ export const dynamic = 'force-dynamic';
 export default async function ModelsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const dataset = getDataset();
-  const state = parseFilterState(params, dataset.branches.map((b) => b.id));
+  const baseState = parseFilterState(params, dataset.branches.map((b) => b.id));
+  const viewAs = parseViewAs(params, dataset.branches.map((b) => b.id));
+  // A role is authoritative, not decorative: a branch manager's view is
+  // scoped to their branch even if the branch parameter is missing.
+  const state = viewAs ? { ...baseState, branchIds: [viewAs] } : baseState;
   const filters = toFilters(state);
   const basePath = '/models';
 
@@ -48,6 +53,8 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
     <div className="app">
       <TopBar
         reconciledCount={dataset.reconciliation.reconciledCount}
+        viewAs={viewAs}
+        branches={dataset.branches}
         current="models"
         actionCount={actions.stalled.count + actions.cold.count}
         filters={state}
@@ -177,7 +184,7 @@ export default async function ModelsPage({ searchParams }: { searchParams: Promi
                         <th style={{ paddingLeft: 16 }}>Vehicle</th>
                         <th className="r">Leads</th>
                         <th className="r">Sold</th>
-                        <th className="r fold">Win rate</th>
+                        <th className="r fold">Leads → sale</th>
                         <th className="r fold">Average price</th>
                         <th className="r">Revenue</th>
                         <th className="r fold">Share of revenue</th>
