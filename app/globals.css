@@ -1706,3 +1706,22 @@ svg:hover .tr-pt:not(:hover) .tr-dot { opacity: .55; }
   .menu[open] > .menu-pop { animation: none !important; }
   [aria-busy="true"] { animation: none !important; opacity: 1 !important; }
 }
+
+/* ------------------------------------------------------------------ *
+ * Scenario tool
+ *
+ * The two levers and the before/after column sit side by side while there is
+ * room for both. Below that the sliders need the full width: a range input in
+ * a 180px column is a control you cannot aim, and the second lever doubled
+ * the height of that column.
+ * ------------------------------------------------------------------ */
+.wi-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s7);
+}
+.wi-levers { display: grid; gap: var(--s5); }
+
+@media (max-width: 900px) {
+  .wi-cols { grid-template-columns: minmax(0, 1fr); gap: var(--s5); }
+}

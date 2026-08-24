@@ -25,6 +25,7 @@ import { computeReps } from '@/lib/analytics/reps';
 import { computeVerdictOutcome } from '@/lib/analytics/verdict';
 import { computeMomentum } from '@/lib/analytics/momentum';
 import { computeTargets } from '@/lib/analytics/targets';
+import { computeWhatIf } from '@/lib/analytics/whatIf';
 import type { Filters } from '@/lib/types';
 import { median } from '@/lib/stats';
 
@@ -484,5 +485,67 @@ describe('window boundaries', () => {
     const q4 = { from: new Date('2025-10-01T00:00:00.000Z'), to: new Date('2025-12-31T23:59:59.999Z') };
     // Five branches x three months.
     expect(computeTargets(dataset, { activityRange: q4 }).byMonth.length).toBe(3);
+  });
+
+  /*
+   * The scenario tool puts a rupee figure for *today* on screen, so that figure
+   * has to be the real sum of delivered deal values. Deriving it as deliveries
+   * times the average enquiry is off by a third at Lakeside, whose few sales
+   * are unusually cheap cars, and would have contradicted the branch page.
+   */
+  it('reports the branch\'s real delivered revenue, not count times average', () => {
+    for (const branch of raw.branches) {
+      const whatIf = computeWhatIf(dataset, branch.id, 0.5);
+      if (!whatIf) continue;
+      const expected = leads
+        .filter((l) => l.branch_id === branch.id && l.status === 'delivered')
+        .reduce((sum, l) => sum + l.deal_value, 0);
+      expect(whatIf.deliveredRevenue).toBe(expected);
+    }
+    // And the two really do differ, so the assertion above is not vacuous.
+    const lakeside = computeWhatIf(dataset, 'B3', 0.5);
+    expect(lakeside).not.toBeNull();
+    expect(lakeside!.deliveredRevenue).not.toBe(lakeside!.baseline.revenue);
+  });
+
+  it('reproduces today exactly when both levers sit at their current rates', () => {
+    const whatIf = computeWhatIf(dataset, 'B3', 0);
+    expect(whatIf).not.toBeNull();
+    const w = whatIf!;
+    // The two-lever model the component runs: leads x contact x close.
+    const modelled = w.leads * w.baselineRate * w.branchDownstream;
+    expect(modelled).toBeCloseTo(w.baseline.delivered, 6);
+
+    const delivered = leads.filter((l) => l.branch_id === 'B3' && l.status === 'delivered').length;
+    expect(Math.round(w.baseline.delivered)).toBe(delivered);
+  });
+
+  it('gives the whole-funnel figure when both levers move to peer rates', () => {
+    const whatIf = computeWhatIf(dataset, 'B3', 0);
+    expect(whatIf).not.toBeNull();
+    const w = whatIf!;
+    const atBoth = w.leads * w.peerRate * w.peerDownstream;
+    // Which is the same result the single-lever peer path already reported, so
+    // the new second slider cannot disagree with the existing headline.
+    const viaExisting = computeWhatIf(dataset, 'B3', w.peerRate)!.atPeerRates.delivered;
+    expect(atBoth).toBeCloseTo(viaExisting, 6);
+    expect(atBoth - w.baseline.delivered).toBeGreaterThan(20);
+  });
+
+  /*
+   * The sliders are whole per cents. At Lakeside 58% of 79 leads is 45.8, not
+   * the real 46, and pricing that fifth of a car put a rupee figure on a panel
+   * that says nothing has moved. The component snaps to the exact baseline; if
+   * the drift ever grew past a car this would stop being cosmetic.
+   */
+  it('keeps whole-percent slider drift below one car', () => {
+    for (const branch of raw.branches) {
+      const w = computeWhatIf(dataset, branch.id, 0);
+      if (!w) continue;
+      const contactPct = Math.round(w.baselineRate * 100) / 100;
+      const closePct = Math.round(w.branchDownstream * 100) / 100;
+      const drift = Math.abs(w.leads * contactPct * closePct - w.baseline.delivered);
+      expect(drift).toBeLessThan(1);
+    }
   });
 });

@@ -15,7 +15,7 @@
 import { computeFunnel } from '@/lib/analytics/funnel';
 import { selectLeads } from '@/lib/filters';
 import { isDelivered } from '@/lib/lead';
-import { countWhere, mean } from '@/lib/stats';
+import { countWhere, mean, sumBy } from '@/lib/stats';
 import type { Dataset } from '@/lib/data';
 import type { BranchId, Filters } from '@/lib/types';
 
@@ -37,6 +37,16 @@ export interface WhatIfResult {
   scenarioRate: number;
   /** The peer group's first-contact rate — the natural target. */
   peerRate: number;
+
+  /**
+   * The branch's actual delivered revenue, summed from the real deal values.
+   *
+   * `baseline.revenue` is deliveries times the average enquiry, which is the
+   * right basis for pricing *incremental* cars but does not reproduce the
+   * figure shown everywhere else in the product. Anything that puts a rupee
+   * amount for today on screen has to use this one.
+   */
+  deliveredRevenue: number;
 
   baseline: WhatIfOutcome;
   /** Downstream conversion held at the branch's current rates. */
@@ -97,8 +107,10 @@ export function computeWhatIf(
 
   const rate = Math.min(1, Math.max(0, scenarioRate));
   const averageDealValue = mean(leads.map((lead) => lead.dealValue)) ?? 0;
+  const deliveredLeads = leads.filter(isDelivered);
 
   const actualDelivered = countWhere(leads, isDelivered);
+  const deliveredRevenue = sumBy(deliveredLeads, (lead) => lead.dealValue);
   const baseline: WhatIfOutcome = {
     contacted: firstStep.toCount,
     delivered: actualDelivered,
@@ -128,6 +140,7 @@ export function computeWhatIf(
     baselineRate,
     scenarioRate: rate,
     peerRate,
+    deliveredRevenue,
     baseline,
     held,
     atPeerRates,

@@ -471,6 +471,7 @@ export default async function ActionCenterPage({
                 peerRate: whatIf.peerRate,
                 baselineContacted: whatIf.baseline.contacted,
                 baselineDelivered: whatIf.baseline.delivered,
+                baselineRevenue: whatIf.deliveredRevenue,
                 branchDownstream: whatIf.branchDownstream,
                 peerDownstream: whatIf.peerDownstream,
                 averageDealValue: whatIf.averageDealValue,
