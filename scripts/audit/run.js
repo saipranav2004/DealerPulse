@@ -21,6 +21,7 @@ const HARNESSES = [
   ['text.js', []],
   ['overlap.js', []],
   ['contrast.js', []],
+  ['controls.js', []],
   // These take a width, and each width is a separate layout to get wrong.
   ...[393, 768, 1024, 1440].flatMap((w) => [['align.js', [String(w)]], ['touch.js', [String(w)]]]),
 ];
